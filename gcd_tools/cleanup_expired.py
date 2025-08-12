@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, List, Optional
 
 from google.cloud import datastore
 
@@ -11,8 +11,6 @@ from .config import (
     build_client,
     list_namespaces,
     list_kinds,
-    apply_kind_filters,
-    apply_namespace_filters,
     chunked,
 )
 
@@ -33,17 +31,15 @@ def cleanup_expired(
 ) -> Dict[str, int]:
     client = build_client(config)
 
-    all_namespaces = list_namespaces(client)
-    namespaces = apply_namespace_filters(
-        all_namespaces, config.namespace_include, config.namespace_exclude
-    )
+    # Determine namespaces: explicit list, or all
+    namespaces = config.namespaces if config.namespaces else list_namespaces(client)
 
     totals: Dict[str, int] = {}
     now = datetime.now(timezone.utc)
 
     for ns in namespaces:
-        kinds = list_kinds(client, ns)
-        kinds = apply_kind_filters(kinds, config.kinds_include, config.kinds_exclude)
+        # Determine kinds: explicit list, or all in namespace
+        kinds = config.kinds if config.kinds else list_kinds(client, ns)
 
         for kind in kinds:
             query = client.query(kind=kind, namespace=ns or None)

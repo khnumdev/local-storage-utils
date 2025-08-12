@@ -5,7 +5,7 @@ from typing import List, Optional
 
 import typer
 
-from gcd_tools.config import AppConfig, load_config, format_size
+from gcd_tools.config import AppConfig, load_config
 from gcd_tools.analyze_kinds import analyze_kinds, print_summary_table
 from gcd_tools.analyze_entity_fields import analyze_field_contributions, print_field_summary
 from gcd_tools.cleanup_expired import cleanup_expired
@@ -35,21 +35,16 @@ def cmd_analyze_kinds(
     project: Optional[str] = typer.Option(None, help="GCP/Emulator project id"),
     emulator_host: Optional[str] = typer.Option(None, help="Emulator host, e.g. localhost:8010"),
     log_level: Optional[str] = typer.Option(None, help="Logging level"),
-    namespace: Optional[List[str]] = typer.Option(None, "--namespace", "-n", help="Namespaces to include"),
-    exclude_namespace: Optional[List[str]] = typer.Option(None, "--exclude-namespace", help="Namespaces to exclude"),
-    kind: Optional[List[str]] = typer.Option(None, "--kind", "-k", help="Kinds to include"),
-    exclude_kind: Optional[List[str]] = typer.Option(None, "--exclude-kind", help="Kinds to exclude"),
+    namespace: Optional[List[str]] = typer.Option(None, "--namespace", "-n", help="Namespaces to process (omit to process all)"),
+    kind: Optional[List[str]] = typer.Option(None, "--kind", "-k", help="Kinds to process (omit to process all in each namespace)"),
     output: Optional[str] = typer.Option(None, help="Output CSV file path"),
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
+
     if namespace:
-        cfg.namespace_include = list(namespace)
-    if exclude_namespace:
-        cfg.namespace_exclude = list(exclude_namespace)
+        cfg.namespaces = list(namespace)
     if kind:
-        cfg.kinds_include = list(kind)
-    if exclude_kind:
-        cfg.kinds_exclude = list(exclude_kind)
+        cfg.kinds = list(kind)
 
     rows = analyze_kinds(cfg)
     if output:
@@ -65,9 +60,9 @@ def cmd_analyze_kinds(
 
 @app.command("analyze-fields")
 def cmd_analyze_fields(
-    kind: str = typer.Option(..., "--kind", "-k", help="Kind to analyze"),
-    namespace: Optional[str] = typer.Option(None, "--namespace", "-n", help="Namespace to query"),
-    group_by: Optional[str] = typer.Option(None, help="Group results by this field value"),
+    kind: Optional[str] = typer.Option(None, "--kind", "-k", help="Kind to analyze (falls back to config.kind)"),
+    namespace: Optional[str] = typer.Option(None, "--namespace", "-n", help="Namespace to query (falls back to config.namespace; omit to use all)"),
+    group_by: Optional[str] = typer.Option(None, help="Group results by this field value (falls back to config.group_by_field)"),
     only_field: Optional[List[str]] = typer.Option(None, "--only-field", help="Only consider these fields"),
     config: Optional[str] = typer.Option(None, help="Path to config.yaml"),
     project: Optional[str] = typer.Option(None, help="GCP/Emulator project id"),
@@ -76,8 +71,16 @@ def cmd_analyze_fields(
     output_json: Optional[str] = typer.Option(None, help="Write raw JSON results to file"),
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
+
+    target_kind = kind or cfg.kind
+    target_namespace = namespace if namespace is not None else cfg.namespace
+    group_by_field = group_by if group_by is not None else cfg.group_by_field
+
+    if not target_kind:
+        raise typer.BadParameter("--kind is required (either via flag or config.kind)")
+
     result = analyze_field_contributions(
-        cfg, kind=kind, namespace=namespace, group_by_field=group_by, only_fields=list(only_field) if only_field else None
+        cfg, kind=target_kind, namespace=target_namespace, group_by_field=group_by_field, only_fields=list(only_field) if only_field else None
     )
 
     if output_json:
@@ -94,29 +97,24 @@ def cmd_cleanup(
     project: Optional[str] = typer.Option(None, help="GCP/Emulator project id"),
     emulator_host: Optional[str] = typer.Option(None, help="Emulator host, e.g. localhost:8010"),
     log_level: Optional[str] = typer.Option(None, help="Logging level"),
-    namespace: Optional[List[str]] = typer.Option(None, "--namespace", "-n", help="Namespaces to include"),
-    exclude_namespace: Optional[List[str]] = typer.Option(None, "--exclude-namespace", help="Namespaces to exclude"),
-    kind: Optional[List[str]] = typer.Option(None, "--kind", "-k", help="Kinds to include"),
-    exclude_kind: Optional[List[str]] = typer.Option(None, "--exclude-kind", help="Kinds to exclude"),
-    ttl_field: Optional[str] = typer.Option(None, help="TTL field name"),
-    delete_missing_ttl: bool = typer.Option(True, help="Delete when TTL field is missing"),
-    batch_size: Optional[int] = typer.Option(None, help="Delete batch size"),
+    namespace: Optional[List[str]] = typer.Option(None, "--namespace", "-n", help="Namespaces to process (omit to process all)"),
+    kind: Optional[List[str]] = typer.Option(None, "--kind", "-k", help="Kinds to process (omit to process all in each namespace)"),
+    ttl_field: Optional[str] = typer.Option(None, help="TTL field name (falls back to config.ttl_field)"),
+    delete_missing_ttl: Optional[bool] = typer.Option(None, help="Delete when TTL field is missing (falls back to config.delete_missing_ttl)"),
+    batch_size: Optional[int] = typer.Option(None, help="Delete batch size (falls back to config.batch_size)"),
     dry_run: bool = typer.Option(False, help="Only report counts; do not delete"),
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
 
     if namespace:
-        cfg.namespace_include = list(namespace)
-    if exclude_namespace:
-        cfg.namespace_exclude = list(exclude_namespace)
+        cfg.namespaces = list(namespace)
     if kind:
-        cfg.kinds_include = list(kind)
-    if exclude_kind:
-        cfg.kinds_exclude = list(exclude_kind)
-    if ttl_field:
+        cfg.kinds = list(kind)
+    if ttl_field is not None:
         cfg.ttl_field = ttl_field
-    cfg.delete_missing_ttl = delete_missing_ttl
-    if batch_size:
+    if delete_missing_ttl is not None:
+        cfg.delete_missing_ttl = delete_missing_ttl
+    if batch_size is not None:
         cfg.batch_size = batch_size
 
     totals = cleanup_expired(cfg, dry_run=dry_run)

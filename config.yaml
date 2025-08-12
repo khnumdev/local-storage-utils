@@ -5,11 +5,15 @@
 project_id: null          # e.g. "my-project"; if omitted, ADC or env will be used
 emulator_host: null       # e.g. "localhost:8010"; if set, emulator mode is enabled
 
-# Filters
-namespace_include: []     # e.g. ["", "tenant-a"]; empty string means default namespace
-namespace_exclude: []
-kinds_include: []
-kinds_exclude: []
+# Explicit filters (empty == all)
+# Empty list of namespaces means: iterate over all namespaces (including default "")
+namespaces: []            # e.g. ["", "tenant-a"]
+# Empty list of kinds means: iterate over all kinds within each namespace
+kinds: []                 # e.g. ["SourceCollectionStateEntity"]
+
+# Optional defaults used by some commands
+kind: null                # default kind for analyze-fields
+namespace: null           # default namespace for analyze-fields
 
 # Cleanup
 ttl_field: "expireAt"

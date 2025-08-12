@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence
 
 import yaml
 from google.cloud import datastore
@@ -14,11 +14,13 @@ class AppConfig:
     project_id: Optional[str] = None
     emulator_host: Optional[str] = None
 
-    # Filters
-    namespace_include: List[str] = field(default_factory=list)
-    namespace_exclude: List[str] = field(default_factory=list)
-    kinds_include: List[str] = field(default_factory=list)
-    kinds_exclude: List[str] = field(default_factory=list)
+    # Explicit filters (when empty -> use all)
+    namespaces: List[str] = field(default_factory=list)
+    kinds: List[str] = field(default_factory=list)
+
+    # Optional defaults for commands that need them (e.g., analyze-fields)
+    kind: Optional[str] = None
+    namespace: Optional[str] = None
 
     # Cleanup settings
     ttl_field: str = "expireAt"
@@ -59,10 +61,13 @@ def load_config(path: Optional[str] = None, overrides: Optional[Dict] = None) ->
     config.project_id = merged.get("project_id") or os.getenv("DATASTORE_PROJECT_ID")
     config.emulator_host = merged.get("emulator_host") or os.getenv("DATASTORE_EMULATOR_HOST")
 
-    config.namespace_include = _as_list(merged.get("namespace_include"))
-    config.namespace_exclude = _as_list(merged.get("namespace_exclude"))
-    config.kinds_include = _as_list(merged.get("kinds_include"))
-    config.kinds_exclude = _as_list(merged.get("kinds_exclude"))
+    # Explicit lists (no include/exclude). Empty -> all
+    config.namespaces = _as_list(merged.get("namespaces"))
+    config.kinds = _as_list(merged.get("kinds"))
+
+    # Optional defaults used by some commands
+    config.kind = merged.get("kind")
+    config.namespace = merged.get("namespace")
 
     config.ttl_field = merged.get("ttl_field", config.ttl_field)
     config.delete_missing_ttl = bool(merged.get("delete_missing_ttl", config.delete_missing_ttl))
@@ -117,29 +122,7 @@ def list_kinds(client: datastore.Client, namespace: Optional[str]) -> List[str]:
     return [e.key.name for e in query.fetch()]
 
 
-def apply_namespace_filters(all_namespaces: Sequence[str], include: Sequence[str], exclude: Sequence[str]) -> List[str]:
-    selected = list(all_namespaces)
-    if include:
-        include_set = set(include)
-        selected = [ns for ns in selected if ns in include_set]
-    if exclude:
-        exclude_set = set(exclude)
-        selected = [ns for ns in selected if ns not in exclude_set]
-    return selected
-
-
-def apply_kind_filters(all_kinds: Sequence[str], include: Sequence[str], exclude: Sequence[str]) -> List[str]:
-    selected = list(all_kinds)
-    if include:
-        include_set = set(include)
-        selected = [k for k in selected if k in include_set]
-    if exclude:
-        exclude_set = set(exclude)
-        selected = [k for k in selected if k not in exclude_set]
-    return selected
-
-
-def chunked(iterable: Sequence, chunk_size: int) -> Iterable[Sequence]:
+def chunked(iterable: Sequence, chunk_size: int):
     for i in range(0, len(iterable), max(1, chunk_size)):
         yield iterable[i : i + chunk_size]
 

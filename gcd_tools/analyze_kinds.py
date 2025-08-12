@@ -11,8 +11,6 @@ from .config import (
     build_client,
     list_namespaces,
     list_kinds,
-    apply_kind_filters,
-    apply_namespace_filters,
     format_size,
 )
 
@@ -40,15 +38,13 @@ def estimate_entity_count_and_size(
 def analyze_kinds(config: AppConfig) -> List[Dict]:
     client = build_client(config)
 
-    all_namespaces = list_namespaces(client)
-    namespaces = apply_namespace_filters(
-        all_namespaces, config.namespace_include, config.namespace_exclude
-    )
+    # Determine namespaces: explicit list, or all
+    namespaces = config.namespaces if config.namespaces else list_namespaces(client)
 
     results: List[Dict] = []
     for ns in namespaces:
-        kinds = list_kinds(client, ns)
-        kinds = apply_kind_filters(kinds, config.kinds_include, config.kinds_exclude)
+        # Determine kinds: explicit list, or all in namespace
+        kinds = config.kinds if config.kinds else list_kinds(client, ns)
 
         logger.info("Analyzing namespace=%s, %d kinds", ns or "(default)", len(kinds))
         for kind in kinds:

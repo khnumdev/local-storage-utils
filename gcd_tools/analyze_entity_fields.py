@@ -7,7 +7,7 @@ from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple
 from google.cloud import datastore
 from google.cloud.datastore.helpers import entity_to_protobuf
 
-from .config import AppConfig, build_client, format_size
+from .config import AppConfig, build_client, format_size, list_namespaces
 
 logger = logging.getLogger(__name__)
 
@@ -44,15 +44,13 @@ def _estimate_field_contributions(
     return dict(field_totals), total_size, entity_count
 
 
-def analyze_field_contributions(
-    config: AppConfig,
+def _analyze_single_namespace(
+    client: datastore.Client,
     kind: str,
-    namespace: Optional[str] = None,
-    group_by_field: Optional[str] = None,
-    only_fields: Optional[List[str]] = None,
+    namespace: Optional[str],
+    group_by_field: Optional[str],
+    only_fields: Optional[List[str]],
 ) -> Dict:
-    client = build_client(config)
-
     query = client.query(kind=kind, namespace=namespace or None)
 
     if group_by_field:
@@ -117,7 +115,37 @@ def analyze_field_contributions(
     }
 
 
+def analyze_field_contributions(
+    config: AppConfig,
+    kind: str,
+    namespace: Optional[str] = None,
+    group_by_field: Optional[str] = None,
+    only_fields: Optional[List[str]] = None,
+) -> Dict:
+    client = build_client(config)
+
+    # If no namespace provided, iterate across all namespaces
+    if namespace is None:
+        results: Dict[str, Dict] = {}
+        for ns in list_namespaces(client):
+            results[ns or ""] = _analyze_single_namespace(
+                client, kind=kind, namespace=ns, group_by_field=group_by_field, only_fields=only_fields
+            )
+        return {"by_namespace": results}
+
+    # Single namespace
+    return _analyze_single_namespace(
+        client, kind=kind, namespace=namespace, group_by_field=group_by_field, only_fields=only_fields
+    )
+
+
 def print_field_summary(result: Dict) -> None:
+    if "by_namespace" in result:
+        for ns, data in result["by_namespace"].items():
+            print(f"\n=== namespace: {ns or '(default)'} ===")
+            print_field_summary(data)
+        return
+
     if "grouped" in result:
         for group_key, data in result["grouped"].items():
             ns = data.get("namespace") or ""

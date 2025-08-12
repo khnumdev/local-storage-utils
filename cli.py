@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import List, Optional
+from typing import Annotated
 
 import typer
 
@@ -11,6 +12,30 @@ from gcd_tools.analyze_entity_fields import analyze_field_contributions, print_f
 from gcd_tools.cleanup_expired import cleanup_expired
 
 app = typer.Typer(help="Utilities for analyzing and managing local Datastore/Firestore (Datastore mode)")
+
+# Reusable option aliases
+ConfigOpt = Annotated[Optional[str], typer.Option(None, "--config", help="Path to config.yaml")]
+ProjectOpt = Annotated[Optional[str], typer.Option(None, "--project", help="GCP/Emulator project id")]
+EmulatorHostOpt = Annotated[
+    Optional[str], typer.Option(None, "--emulator-host", help="Emulator host, e.g. localhost:8010")
+]
+LogLevelOpt = Annotated[Optional[str], typer.Option(None, "--log-level", help="Logging level")]
+NamespacesOpt = Annotated[
+    Optional[List[str]],
+    typer.Option(None, "--namespace", "-n", help="Namespaces to process (omit to process all)"),
+]
+KindsOpt = Annotated[
+    Optional[List[str]],
+    typer.Option(
+        None, "--kind", "-k", help="Kinds to process (omit to process all in each namespace)"
+    ),
+]
+SingleNamespaceOpt = Annotated[
+    Optional[str], typer.Option(None, "--namespace", "-n", help="Namespace to query (omit to use all)")
+]
+SingleKindOpt = Annotated[
+    Optional[str], typer.Option(None, "--kind", "-k", help="Kind to analyze (falls back to config.kind)")
+]
 
 
 def _load_cfg(
@@ -31,12 +56,12 @@ def _load_cfg(
 
 @app.command("analyze-kinds")
 def cmd_analyze_kinds(
-    config: Optional[str] = typer.Option(None, help="Path to config.yaml"),
-    project: Optional[str] = typer.Option(None, help="GCP/Emulator project id"),
-    emulator_host: Optional[str] = typer.Option(None, help="Emulator host, e.g. localhost:8010"),
-    log_level: Optional[str] = typer.Option(None, help="Logging level"),
-    namespace: Optional[List[str]] = typer.Option(None, "--namespace", "-n", help="Namespaces to process (omit to process all)"),
-    kind: Optional[List[str]] = typer.Option(None, "--kind", "-k", help="Kinds to process (omit to process all in each namespace)"),
+    config: ConfigOpt,
+    project: ProjectOpt,
+    emulator_host: EmulatorHostOpt,
+    log_level: LogLevelOpt,
+    namespace: NamespacesOpt,
+    kind: KindsOpt,
     output: Optional[str] = typer.Option(None, help="Output CSV file path"),
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
@@ -60,15 +85,15 @@ def cmd_analyze_kinds(
 
 @app.command("analyze-fields")
 def cmd_analyze_fields(
-    kind: Optional[str] = typer.Option(None, "--kind", "-k", help="Kind to analyze (falls back to config.kind)"),
-    namespace: Optional[str] = typer.Option(None, "--namespace", "-n", help="Namespace to query (falls back to config.namespace; omit to use all)"),
-    group_by: Optional[str] = typer.Option(None, help="Group results by this field value (falls back to config.group_by_field)"),
-    only_field: Optional[List[str]] = typer.Option(None, "--only-field", help="Only consider these fields"),
-    config: Optional[str] = typer.Option(None, help="Path to config.yaml"),
-    project: Optional[str] = typer.Option(None, help="GCP/Emulator project id"),
-    emulator_host: Optional[str] = typer.Option(None, help="Emulator host, e.g. localhost:8010"),
-    log_level: Optional[str] = typer.Option(None, help="Logging level"),
-    output_json: Optional[str] = typer.Option(None, help="Write raw JSON results to file"),
+    kind: SingleKindOpt,
+    namespace: SingleNamespaceOpt,
+    group_by: Annotated[Optional[str], typer.Option(None, help="Group results by this field value (falls back to config.group_by_field)")],
+    only_field: Annotated[Optional[List[str]], typer.Option(None, "--only-field", help="Only consider these fields")],
+    config: ConfigOpt,
+    project: ProjectOpt,
+    emulator_host: EmulatorHostOpt,
+    log_level: LogLevelOpt,
+    output_json: Annotated[Optional[str], typer.Option(None, help="Write raw JSON results to file")],
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
 
@@ -80,7 +105,11 @@ def cmd_analyze_fields(
         raise typer.BadParameter("--kind is required (either via flag or config.kind)")
 
     result = analyze_field_contributions(
-        cfg, kind=target_kind, namespace=target_namespace, group_by_field=group_by_field, only_fields=list(only_field) if only_field else None
+        cfg,
+        kind=target_kind,
+        namespace=target_namespace,
+        group_by_field=group_by_field,
+        only_fields=list(only_field) if only_field else None,
     )
 
     if output_json:
@@ -93,16 +122,19 @@ def cmd_analyze_fields(
 
 @app.command("cleanup")
 def cmd_cleanup(
-    config: Optional[str] = typer.Option(None, help="Path to config.yaml"),
-    project: Optional[str] = typer.Option(None, help="GCP/Emulator project id"),
-    emulator_host: Optional[str] = typer.Option(None, help="Emulator host, e.g. localhost:8010"),
-    log_level: Optional[str] = typer.Option(None, help="Logging level"),
-    namespace: Optional[List[str]] = typer.Option(None, "--namespace", "-n", help="Namespaces to process (omit to process all)"),
-    kind: Optional[List[str]] = typer.Option(None, "--kind", "-k", help="Kinds to process (omit to process all in each namespace)"),
-    ttl_field: Optional[str] = typer.Option(None, help="TTL field name (falls back to config.ttl_field)"),
-    delete_missing_ttl: Optional[bool] = typer.Option(None, help="Delete when TTL field is missing (falls back to config.delete_missing_ttl)"),
-    batch_size: Optional[int] = typer.Option(None, help="Delete batch size (falls back to config.batch_size)"),
-    dry_run: bool = typer.Option(False, help="Only report counts; do not delete"),
+    config: ConfigOpt,
+    project: ProjectOpt,
+    emulator_host: EmulatorHostOpt,
+    log_level: LogLevelOpt,
+    namespace: NamespacesOpt,
+    kind: KindsOpt,
+    ttl_field: Annotated[Optional[str], typer.Option(None, help="TTL field name (falls back to config.ttl_field)")],
+    delete_missing_ttl: Annotated[
+        Optional[bool],
+        typer.Option(None, help="Delete when TTL field is missing (falls back to config.delete_missing_ttl)"),
+    ],
+    batch_size: Annotated[Optional[int], typer.Option(None, help="Delete batch size (falls back to config.batch_size)")],
+    dry_run: Annotated[bool, typer.Option(False, help="Only report counts; do not delete")],
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
 

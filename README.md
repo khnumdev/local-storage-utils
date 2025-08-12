@@ -15,11 +15,21 @@ This installs the `lsu` CLI.
 ```bash
 git clone <this-repo-url>
 cd local-storage-utils
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-pip install -U pip
+python -m pip install -U pip
 pip install -e .
 ```
+
+### Troubleshooting local installs
+- If you see "Command 'python' not found", use `python3 -m venv .venv` (above). Inside the venv, `python` will point to Python 3.
+- If you see "externally-managed-environment", you are attempting a system-wide install. Always install into a virtual environment:
+  - Create a venv: `python3 -m venv .venv && source .venv/bin/activate`
+  - Then use the venv pip: `python -m pip install -U pip && pip install -e .`
+- If venv creation fails with "ensurepip is not available", install venv tooling on Debian/Ubuntu and retry:
+  ```bash
+  sudo apt-get update && sudo apt-get install -y python3-venv
+  ```
 
 ## Configuration
 

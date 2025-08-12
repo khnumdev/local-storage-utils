@@ -1,0 +1,23 @@
+# Default configuration for local-storage-utils
+# Values here can be overridden via CLI flags or environment variables.
+
+# Core connection
+project_id: null          # e.g. "my-project"; if omitted, ADC or env will be used
+emulator_host: null       # e.g. "localhost:8010"; if set, emulator mode is enabled
+
+# Filters
+namespace_include: []     # e.g. ["", "tenant-a"]; empty string means default namespace
+namespace_exclude: []
+kinds_include: []
+kinds_exclude: []
+
+# Cleanup
+ttl_field: "expireAt"
+delete_missing_ttl: true
+batch_size: 500
+
+# Analysis
+group_by_field: null
+
+# Logging
+log_level: "INFO"

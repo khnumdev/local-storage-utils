@@ -23,11 +23,11 @@ pip install -e .
 
 ## Configuration
 
-- By default, the CLI loads `config.yaml` from the current directory if present.
+- Create a local `config.yaml` in your working directory. It is gitignored and not included in the repo.
 - Any CLI flag overrides values from `config.yaml`.
 - If neither config nor flags provide a value, the tool falls back to environment variables (for emulator detection) or sensible defaults.
 
-Key settings in `config.yaml`:
+Example `config.yaml`:
 
 ```yaml
 project_id: "my-project"          # If omitted, ADC/env will be used
@@ -93,13 +93,9 @@ black .
 
 ## Publishing
 
-- CI is configured to publish to PyPI on tags `v*`.
-- Create a PyPI token and add it to repository secrets as `PYPI_API_TOKEN`.
-- Tag and push:
+- Automated: pushing to `main` triggers versioning, tagging, GitHub release, and PyPI publish via semantic-release.
+- Prerequisites:
+  - Add a PyPI token to repo secrets as `PYPI_API_TOKEN`.
+  - Use conventional commits for proper versioning.
 
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-The GitHub Actions workflow will build and upload the package to PyPI.
+Main branch should be protected (require PRs, disallow direct pushes) in repository settings.

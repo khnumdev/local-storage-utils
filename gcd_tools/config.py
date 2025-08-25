@@ -65,6 +65,12 @@ def load_config(path: Optional[str] = None, overrides: Optional[Dict] = None) ->
     config.namespaces = _as_list(merged.get("namespaces"))
     config.kinds = _as_list(merged.get("kinds"))
 
+    # 🛠 Normalise: treat [""] as empty
+    if config.namespaces == [""] or config.namespaces is None:
+        config.namespaces = []
+    if config.kinds == [""] or config.kinds is None:
+        config.kinds = []
+
     # Optional defaults used by some commands
     config.kind = merged.get("kind")
     config.namespace = merged.get("namespace")
@@ -79,6 +85,7 @@ def load_config(path: Optional[str] = None, overrides: Optional[Dict] = None) ->
 
     _configure_logging(config.log_level)
     return config
+
 
 
 def _configure_logging(level: str) -> None:
@@ -105,14 +112,22 @@ def build_client(config: AppConfig) -> datastore.Client:
 
 
 def list_namespaces(client: datastore.Client) -> List[str]:
-    # Include default namespace as "" first
+    """
+    Return all namespaces in the datastore, including the default ("").
+    Always queries __namespace__ in the root context so it works in emulator/GCP.
+    """
+    # Include default namespace "" first
     namespaces: List[str] = [""]
-    query = client.query(kind="__namespace__")
+
+    # Force namespace=None to query the metadata root
+    query = client.query(kind="__namespace__", namespace=None)
     query.keys_only()
+
     for entity in query.fetch():
         name = entity.key.name or ""
         if name != "":
             namespaces.append(name)
+
     return namespaces
 
 

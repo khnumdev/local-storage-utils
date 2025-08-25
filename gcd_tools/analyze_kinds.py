@@ -14,9 +14,7 @@ from .config import (
     format_size,
 )
 
-
 logger = logging.getLogger(__name__)
-
 
 def estimate_entity_count_and_size(
     client: datastore.Client, kind: str, namespace: Optional[str]
@@ -34,18 +32,15 @@ def estimate_entity_count_and_size(
         count += 1
     return count, total_size
 
-
 def analyze_kinds(config: AppConfig) -> List[Dict]:
     client = build_client(config)
 
-    # Determine namespaces: explicit list, or all
-    namespaces = config.namespaces if config.namespaces else list_namespaces(client)
+    # Thanks to config.py normalisation, [] is the only “all” case
+    namespaces = config.namespaces or list_namespaces(client)
 
     results: List[Dict] = []
     for ns in namespaces:
-        # Determine kinds: explicit list, or all in namespace
-        kinds = config.kinds if config.kinds else list_kinds(client, ns)
-
+        kinds = config.kinds or list_kinds(client, ns)
         logger.info("Analyzing namespace=%s, %d kinds", ns or "(default)", len(kinds))
         for kind in kinds:
             count, total_bytes = estimate_entity_count_and_size(client, kind, ns)
@@ -59,7 +54,6 @@ def analyze_kinds(config: AppConfig) -> List[Dict]:
                 }
             )
     return results
-
 
 def print_summary_table(rows: List[Dict]) -> None:
     # Plain stdout table for wide compatibility

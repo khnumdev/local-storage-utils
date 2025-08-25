@@ -17,17 +17,11 @@ ConfigOpt = Annotated[Optional[str], typer.Option("--config", help="Path to conf
 ProjectOpt = Annotated[Optional[str], typer.Option("--project", help="GCP/Emulator project id")]
 EmulatorHostOpt = Annotated[Optional[str], typer.Option("--emulator-host", help="Emulator host, e.g. localhost:8010")]
 LogLevelOpt = Annotated[Optional[str], typer.Option("--log-level", help="Logging level")]
-NamespacesOpt = Annotated[
-    Optional[List[str]],
-    typer.Option("--namespace", "-n", help="Namespaces to process (omit to process all)")
-]
 KindsOpt = Annotated[
     Optional[List[str]],
-    typer.Option("--kind", "-k", help="Kinds to process (omit to process all in each namespace)")
+    typer.Option("--kind", "-k", help="Kinds to process (omit or empty to process all in each namespace)")
 ]
-SingleNamespaceOpt = Annotated[Optional[str], typer.Option("--namespace", "-n", help="Namespace to query (omit to use all)")]
 SingleKindOpt = Annotated[Optional[str], typer.Option("--kind", "-k", help="Kind to analyze (falls back to config.kind)")]
-
 
 def _load_cfg(
     config_path: Optional[str],
@@ -44,25 +38,22 @@ def _load_cfg(
         overrides["log_level"] = log_level
     return load_config(config_path, overrides)
 
-
 @app.command("analyze-kinds")
 def cmd_analyze_kinds(
     config: ConfigOpt = None,
     project: ProjectOpt = None,
     emulator_host: EmulatorHostOpt = None,
     log_level: LogLevelOpt = None,
-    namespace: NamespacesOpt = None,
     kind: KindsOpt = None,
     output: Annotated[Optional[str], typer.Option("--output", help="Output CSV file path")] = None,
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
 
-    if namespace:
-        cfg.namespaces = list(namespace)
-    if kind:
-        cfg.kinds = list(kind)
-
+    if kind is not None:
+        # Normalise: treat [""] as empty (all kinds)
+        cfg.kinds = [k for k in kind if k]  # drop empty strings
     rows = analyze_kinds(cfg)
+
     if output:
         with open(output, "w", encoding="utf-8") as fh:
             fh.write("namespace,kind,count,size,bytes\n")
@@ -73,11 +64,10 @@ def cmd_analyze_kinds(
     else:
         print_summary_table(rows)
 
-
 @app.command("analyze-fields")
 def cmd_analyze_fields(
     kind: SingleKindOpt = None,
-    namespace: SingleNamespaceOpt = None,
+    namespace: Annotated[Optional[str], typer.Option("--namespace", "-n", help="Namespace to query (omit to use all)")] = None,
     group_by: Annotated[Optional[str], typer.Option("--group-by", help="Group results by this field value (falls back to config.group_by_field)")] = None,
     only_field: Annotated[Optional[List[str]], typer.Option("--only-field", help="Only consider these fields")] = None,
     config: ConfigOpt = None,
@@ -100,7 +90,7 @@ def cmd_analyze_fields(
         kind=target_kind,
         namespace=target_namespace,
         group_by_field=group_by_field,
-        only_fields=list(only_field) if only_field else None,
+        only_fields=[f for f in only_field] if only_field else None,
     )
 
     if output_json:
@@ -110,14 +100,12 @@ def cmd_analyze_fields(
     else:
         print_field_summary(result)
 
-
 @app.command("cleanup")
 def cmd_cleanup(
     config: ConfigOpt = None,
     project: ProjectOpt = None,
     emulator_host: EmulatorHostOpt = None,
     log_level: LogLevelOpt = None,
-    namespace: NamespacesOpt = None,
     kind: KindsOpt = None,
     ttl_field: Annotated[Optional[str], typer.Option("--ttl-field", help="TTL field name (falls back to config.ttl_field)")] = None,
     delete_missing_ttl: Annotated[Optional[bool], typer.Option("--delete-missing-ttl", help="Delete when TTL field is missing (falls back to config.delete_missing_ttl)")] = None,
@@ -126,10 +114,8 @@ def cmd_cleanup(
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
 
-    if namespace:
-        cfg.namespaces = list(namespace)
-    if kind:
-        cfg.kinds = list(kind)
+    if kind is not None:
+        cfg.kinds = [k for k in kind if k]
     if ttl_field is not None:
         cfg.ttl_field = ttl_field
     if delete_missing_ttl is not None:
@@ -140,7 +126,6 @@ def cmd_cleanup(
     totals = cleanup_expired(cfg, dry_run=dry_run)
     deleted_sum = sum(totals.values())
     typer.echo(f"Total entities {'to delete' if dry_run else 'deleted'}: {deleted_sum}")
-
 
 if __name__ == "__main__":
     app()

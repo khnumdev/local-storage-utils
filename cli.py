@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import List, Optional
-from typing import Annotated
+from typing import List, Optional, Annotated
 
 import typer
 
@@ -13,29 +12,21 @@ from gcd_tools.cleanup_expired import cleanup_expired
 
 app = typer.Typer(help="Utilities for analyzing and managing local Datastore/Firestore (Datastore mode)")
 
-# Reusable option aliases
-ConfigOpt = Annotated[Optional[str], typer.Option(None, "--config", help="Path to config.yaml")]
-ProjectOpt = Annotated[Optional[str], typer.Option(None, "--project", help="GCP/Emulator project id")]
-EmulatorHostOpt = Annotated[
-    Optional[str], typer.Option(None, "--emulator-host", help="Emulator host, e.g. localhost:8010")
-]
-LogLevelOpt = Annotated[Optional[str], typer.Option(None, "--log-level", help="Logging level")]
+# Aliases with flags only — no defaults here
+ConfigOpt = Annotated[Optional[str], typer.Option("--config", help="Path to config.yaml")]
+ProjectOpt = Annotated[Optional[str], typer.Option("--project", help="GCP/Emulator project id")]
+EmulatorHostOpt = Annotated[Optional[str], typer.Option("--emulator-host", help="Emulator host, e.g. localhost:8010")]
+LogLevelOpt = Annotated[Optional[str], typer.Option("--log-level", help="Logging level")]
 NamespacesOpt = Annotated[
     Optional[List[str]],
-    typer.Option(None, "--namespace", "-n", help="Namespaces to process (omit to process all)"),
+    typer.Option("--namespace", "-n", help="Namespaces to process (omit to process all)")
 ]
 KindsOpt = Annotated[
     Optional[List[str]],
-    typer.Option(
-        None, "--kind", "-k", help="Kinds to process (omit to process all in each namespace)"
-    ),
+    typer.Option("--kind", "-k", help="Kinds to process (omit to process all in each namespace)")
 ]
-SingleNamespaceOpt = Annotated[
-    Optional[str], typer.Option(None, "--namespace", "-n", help="Namespace to query (omit to use all)")
-]
-SingleKindOpt = Annotated[
-    Optional[str], typer.Option(None, "--kind", "-k", help="Kind to analyze (falls back to config.kind)")
-]
+SingleNamespaceOpt = Annotated[Optional[str], typer.Option("--namespace", "-n", help="Namespace to query (omit to use all)")]
+SingleKindOpt = Annotated[Optional[str], typer.Option("--kind", "-k", help="Kind to analyze (falls back to config.kind)")]
 
 
 def _load_cfg(
@@ -56,13 +47,13 @@ def _load_cfg(
 
 @app.command("analyze-kinds")
 def cmd_analyze_kinds(
-    config: ConfigOpt,
-    project: ProjectOpt,
-    emulator_host: EmulatorHostOpt,
-    log_level: LogLevelOpt,
-    namespace: NamespacesOpt,
-    kind: KindsOpt,
-    output: Optional[str] = typer.Option(None, help="Output CSV file path"),
+    config: ConfigOpt = None,
+    project: ProjectOpt = None,
+    emulator_host: EmulatorHostOpt = None,
+    log_level: LogLevelOpt = None,
+    namespace: NamespacesOpt = None,
+    kind: KindsOpt = None,
+    output: Annotated[Optional[str], typer.Option("--output", help="Output CSV file path")] = None,
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
 
@@ -85,15 +76,15 @@ def cmd_analyze_kinds(
 
 @app.command("analyze-fields")
 def cmd_analyze_fields(
-    kind: SingleKindOpt,
-    namespace: SingleNamespaceOpt,
-    group_by: Annotated[Optional[str], typer.Option(None, help="Group results by this field value (falls back to config.group_by_field)")],
-    only_field: Annotated[Optional[List[str]], typer.Option(None, "--only-field", help="Only consider these fields")],
-    config: ConfigOpt,
-    project: ProjectOpt,
-    emulator_host: EmulatorHostOpt,
-    log_level: LogLevelOpt,
-    output_json: Annotated[Optional[str], typer.Option(None, help="Write raw JSON results to file")],
+    kind: SingleKindOpt = None,
+    namespace: SingleNamespaceOpt = None,
+    group_by: Annotated[Optional[str], typer.Option("--group-by", help="Group results by this field value (falls back to config.group_by_field)")] = None,
+    only_field: Annotated[Optional[List[str]], typer.Option("--only-field", help="Only consider these fields")] = None,
+    config: ConfigOpt = None,
+    project: ProjectOpt = None,
+    emulator_host: EmulatorHostOpt = None,
+    log_level: LogLevelOpt = None,
+    output_json: Annotated[Optional[str], typer.Option("--output-json", help="Write raw JSON results to file")] = None,
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
 
@@ -122,19 +113,16 @@ def cmd_analyze_fields(
 
 @app.command("cleanup")
 def cmd_cleanup(
-    config: ConfigOpt,
-    project: ProjectOpt,
-    emulator_host: EmulatorHostOpt,
-    log_level: LogLevelOpt,
-    namespace: NamespacesOpt,
-    kind: KindsOpt,
-    ttl_field: Annotated[Optional[str], typer.Option(None, help="TTL field name (falls back to config.ttl_field)")],
-    delete_missing_ttl: Annotated[
-        Optional[bool],
-        typer.Option(None, help="Delete when TTL field is missing (falls back to config.delete_missing_ttl)"),
-    ],
-    batch_size: Annotated[Optional[int], typer.Option(None, help="Delete batch size (falls back to config.batch_size)")],
-    dry_run: Annotated[bool, typer.Option(False, help="Only report counts; do not delete")],
+    config: ConfigOpt = None,
+    project: ProjectOpt = None,
+    emulator_host: EmulatorHostOpt = None,
+    log_level: LogLevelOpt = None,
+    namespace: NamespacesOpt = None,
+    kind: KindsOpt = None,
+    ttl_field: Annotated[Optional[str], typer.Option("--ttl-field", help="TTL field name (falls back to config.ttl_field)")] = None,
+    delete_missing_ttl: Annotated[Optional[bool], typer.Option("--delete-missing-ttl", help="Delete when TTL field is missing (falls back to config.delete_missing_ttl)")] = None,
+    batch_size: Annotated[Optional[int], typer.Option("--batch-size", help="Delete batch size (falls back to config.batch_size)")] = None,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Only report counts; do not delete")] = False,
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
 

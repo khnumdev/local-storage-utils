@@ -28,7 +28,8 @@ def _estimate_field_contributions(
     total_size = 0
     entity_count = 0
 
-    for entity in entities:
+    from tqdm import tqdm
+    for entity in tqdm(list(entities), desc="Analyzing field contributions", unit="entity"):
         entity_count += 1
         proto = entity_to_protobuf(entity)._pb
         full_size = len(proto.SerializeToString())

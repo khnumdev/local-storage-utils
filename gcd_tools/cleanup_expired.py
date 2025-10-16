@@ -6,6 +6,8 @@ from typing import Dict, List, Optional
 
 from google.cloud import datastore
 
+from tqdm import tqdm
+
 from .config import (
     AppConfig,
     build_client,
@@ -44,7 +46,8 @@ def cleanup_expired(
         for kind in kinds:
             query = client.query(kind=kind, namespace=ns or None)
             to_delete: List[datastore.Key] = []
-            for entity in query.fetch():
+            entities = list(query.fetch())
+            for entity in tqdm(entities, desc=f"Scanning {kind} in ns={ns or '(default)'}", unit="entity"):
                 expire_at = entity.get(config.ttl_field)
                 expired = expire_at is None if config.delete_missing_ttl else False
                 if not expired and expire_at is not None:
@@ -65,13 +68,17 @@ def cleanup_expired(
                 )
                 totals[f"{ns}:{kind}"] = len(to_delete)
             else:
-                deleted = _delete_in_batches(client, to_delete, config.batch_size) if to_delete else 0
-                logger.info(
-                    "ns=%s kind=%s deleted %d expired entities",
-                    ns or "(default)",
-                    kind,
-                    deleted,
-                )
-                totals[f"{ns}:{kind}"] = deleted
+                    deleted = 0
+                    if to_delete:
+                        for batch in tqdm(list(chunked(to_delete, config.batch_size)), desc=f"Deleting {kind} in ns={ns or '(default)'}", unit="batch"):
+                            client.delete_multi(batch)
+                            deleted += len(batch)
+                    logger.info(
+                        "ns=%s kind=%s deleted %d expired entities",
+                        ns or "(default)",
+                        kind,
+                        deleted,
+                    )
+                    totals[f"{ns}:{kind}"] = deleted
 
     return totals

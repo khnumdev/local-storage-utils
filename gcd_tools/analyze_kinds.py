@@ -73,11 +73,12 @@ def analyze_kinds(config: AppConfig, method: Optional[str] = None) -> List[Dict]
     # Thanks to config.py normalisation, [] is the only “all” case
     namespaces = config.namespaces or list_namespaces(client)
 
+    from tqdm import tqdm
     results: List[Dict] = []
     for ns in namespaces:
         kinds = config.kinds or list_kinds(client, ns)
         logger.info("Analyzing namespace=%s, %d kinds", ns or "(default)", len(kinds))
-        for kind in kinds:
+        for kind in tqdm(kinds, desc=f"Analyzing kinds in ns={ns or '(default)'}", unit="kind"):
             if method == "stats":
                 count, total_bytes = get_kind_stats(client, kind, ns)
                 if count is None:

@@ -1,0 +1,6 @@
+name: CI
+
+on: [push, pull_request]
+jobs:
+  test:
+    uses: ./.github/workflows/emulator-test.yml

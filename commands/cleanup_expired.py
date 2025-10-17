@@ -6,8 +6,6 @@ from typing import Dict, List, Optional
 
 from google.cloud import datastore
 
-from tqdm import tqdm
-
 from .config import (
     AppConfig,
     build_client,
@@ -33,8 +31,11 @@ def cleanup_expired(
 ) -> Dict[str, int]:
     client = build_client(config)
 
-    # Determine namespaces: explicit list, or all
-    namespaces = config.namespaces if config.namespaces else list_namespaces(client)
+    # If namespaces is None or empty, iterate all available namespaces
+    if not config.namespaces:
+        namespaces = list_namespaces(client)
+    else:
+        namespaces = config.namespaces
 
     totals: Dict[str, int] = {}
     now = datetime.now(timezone.utc)
@@ -47,6 +48,7 @@ def cleanup_expired(
             query = client.query(kind=kind, namespace=ns or None)
             to_delete: List[datastore.Key] = []
             entities = list(query.fetch())
+            from tqdm import tqdm
             for entity in tqdm(entities, desc=f"Scanning {kind} in ns={ns or '(default)'}", unit="entity"):
                 expire_at = entity.get(config.ttl_field)
                 expired = expire_at is None if config.delete_missing_ttl else False
@@ -68,17 +70,17 @@ def cleanup_expired(
                 )
                 totals[f"{ns}:{kind}"] = len(to_delete)
             else:
-                    deleted = 0
-                    if to_delete:
-                        for batch in tqdm(list(chunked(to_delete, config.batch_size)), desc=f"Deleting {kind} in ns={ns or '(default)'}", unit="batch"):
-                            client.delete_multi(batch)
-                            deleted += len(batch)
-                    logger.info(
-                        "ns=%s kind=%s deleted %d expired entities",
-                        ns or "(default)",
-                        kind,
-                        deleted,
-                    )
-                    totals[f"{ns}:{kind}"] = deleted
+                deleted = 0
+                if to_delete:
+                    for batch in tqdm(list(chunked(to_delete, config.batch_size)), desc=f"Deleting {kind} in ns={ns or '(default)'}", unit="batch"):
+                        client.delete_multi(batch)
+                        deleted += len(batch)
+                logger.info(
+                    "ns=%s kind=%s deleted %d expired entities",
+                    ns or "(default)",
+                    kind,
+                    deleted,
+                )
+                totals[f"{ns}:{kind}"] = deleted
 
     return totals

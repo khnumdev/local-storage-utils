@@ -8,7 +8,6 @@ from typing import Dict, Iterable, List, Optional, Sequence
 import yaml
 from google.cloud import datastore
 
-
 @dataclass
 class AppConfig:
     project_id: Optional[str] = None
@@ -85,7 +84,6 @@ def load_config(path: Optional[str] = None, overrides: Optional[Dict] = None) ->
 
     _configure_logging(config.log_level)
     return config
-
 
 
 def _configure_logging(level: str) -> None:

@@ -5,10 +5,10 @@ from typing import List, Optional, Annotated
 
 import typer
 
-from gcd_tools.config import AppConfig, load_config
-from gcd_tools.analyze_kinds import analyze_kinds, print_summary_table
-from gcd_tools.analyze_entity_fields import analyze_field_contributions, print_field_summary
-from gcd_tools.cleanup_expired import cleanup_expired
+from commands.config import AppConfig, load_config
+from commands.analyze_kinds import analyze_kinds, print_summary_table
+from commands.analyze_entity_fields import analyze_field_contributions, print_field_summary
+from commands.cleanup_expired import cleanup_expired
 
 app = typer.Typer(help="Utilities for analyzing and managing local Datastore/Firestore (Datastore mode)")
 

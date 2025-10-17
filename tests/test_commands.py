@@ -1,10 +1,9 @@
-
 import sys
 import os
 import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from gcd_tools import analyze_kinds, analyze_entity_fields, cleanup_expired, config
-from gcd_tools.config import AppConfig
+from commands import analyze_kinds, analyze_entity_fields, cleanup_expired, config
+from commands.config import AppConfig, build_client, list_namespaces
 
 # Dummy config for testing (adjust as needed for emulator)
 def make_dummy_config():
@@ -43,3 +42,11 @@ def test_cleanup_expired_runs():
         assert isinstance(result, dict)
     except Exception as e:
         pytest.skip(f"cleanup_expired requires emulator: {e}")
+
+def test_list_namespaces_returns_default_and_any_custom():
+    cfg = AppConfig(project_id="dummy-project", emulator_host="localhost:8010")
+    client = build_client(cfg)
+    namespaces = list_namespaces(client)
+    assert "" in namespaces  # default namespace always present
+    # This test will pass if at least the default namespace is present
+    # Add more asserts if you know your emulator has more namespaces

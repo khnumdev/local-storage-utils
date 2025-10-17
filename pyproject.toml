@@ -38,7 +38,7 @@ local-storage-utils = "cli:app"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["gcd_tools*"]
+include = ["commands*"]
 
 [tool.black]
 line-length = 100

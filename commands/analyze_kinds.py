@@ -70,13 +70,18 @@ def analyze_kinds(config: AppConfig, method: Optional[str] = None) -> List[Dict]
     # Decide method priority: parameter > config > default
     method = method or getattr(config, "method", None) or "stats"
 
-    # Thanks to config.py normalisation, [] is the only “all” case
-    namespaces = config.namespaces or list_namespaces(client)
+    # If namespaces is None or empty, iterate all available namespaces
+    if not config.namespaces:
+        namespaces = list_namespaces(client)
+    else:
+        namespaces = config.namespaces
 
+    print(f"Found namespaces: {namespaces}")
     from tqdm import tqdm
     results: List[Dict] = []
     for ns in namespaces:
         kinds = config.kinds or list_kinds(client, ns)
+        print(f"Namespace '{ns}': found kinds: {kinds}")
         logger.info("Analyzing namespace=%s, %d kinds", ns or "(default)", len(kinds))
         for kind in tqdm(kinds, desc=f"Analyzing kinds in ns={ns or '(default)'}", unit="kind"):
             if method == "stats":

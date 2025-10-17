@@ -22,6 +22,20 @@ jobs:
         run: |
           gcloud beta emulators datastore start --host-port=localhost:8010 --project=dummy-project &
           sleep 10
+      - name: Wait for Datastore Emulator to be ready
+        run: |
+          for i in {1..30}; do
+            if nc -z localhost 8010; then
+              echo "Datastore emulator is up!"
+              break
+            fi
+            echo "Waiting for emulator... ($i)"
+            sleep 1
+          done
+          if ! nc -z localhost 8010; then
+            echo "Emulator did not start in time!" >&2
+            exit 1
+          fi
       - name: Set environment variables
         run: |
           echo "DATASTORE_EMULATOR_HOST=localhost:8010" >> $GITHUB_ENV

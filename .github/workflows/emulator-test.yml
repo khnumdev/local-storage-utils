@@ -43,9 +43,20 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
-          pip install pytest
-      - name: Seed Emulator
-        run: python scripts/seed_emulator.py
-      - name: Run tests
-        run: pytest -q
+          # Install package with developer extras so tests and seeding tools are available
+          pip install -e .[dev]
+      - name: Seed Emulator (with retries)
+        run: |
+          for i in {1..6}; do
+            echo "Seeding emulator (attempt $i)"
+            if python scripts/seed_emulator.py; then
+              echo "Seed succeeded"
+              break
+            fi
+            echo "Seed failed, retrying..."
+            sleep 5
+          done
+      - name: Run tests (Makefile integration)
+        run: |
+          make deps
+          make integration

@@ -82,17 +82,35 @@ Use `--help` on any command for full options. Config can be provided via `config
 
 ## Development
 
-- Create a virtual environment and install in editable mode as shown above
-- Run tests:
+- Create and activate a virtual environment (recommended):
 
 ```bash
-python -m pip install pytest
-pytest -q
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+```
+
+- Install the package in editable mode with developer dependencies:
+
+```bash
+# Preferred: use the optional dev extras if your environment supports them
+pip install -e .[dev]
+
+# Or: install package then dev requirements
+pip install -e .
+pip install pytest google-cloud-datastore tqdm
+```
+
+- Run tests using the venv python (ensures google-cloud packages are available):
+
+```bash
+.venv/bin/python -m pytest -q
 ```
 
 - Lint/format (optional if you use pre-commit/CI):
+
 ```bash
-python -m pip install ruff black
+pip install ruff black
 ruff check .
 black .
 ```
@@ -105,3 +123,29 @@ black .
   - Use conventional commits for proper versioning.
 
 Main branch should be protected (require PRs, disallow direct pushes) in repository settings.
+
+## Emulator & integration testing
+
+For integration tests that exercise the Datastore emulator, there's a small helper script that
+starts the emulator, waits for it to become healthy, and seeds it with deterministic test data:
+
+```bash
+# start emulator and seed using the project's .venv python (preferred)
+./scripts/run_emulator_local.sh
+
+# If you prefer to start the emulator without seeding (e.g. to seed manually),
+# use the --no-seed flag:
+./scripts/run_emulator_local.sh --no-seed
+```
+
+The script prefers `.venv/bin/python` if present, and falls back to `python3` or `python`.
+
+Once the emulator is running and seeded, run the integration tests with the Makefile target:
+
+```bash
+# create a venv (see Development section), install deps, then:
+make integration
+```
+
+Integration tests will skip automatically when no emulator is available, so running `make unit`
+is a fast way to run only pure-unit tests.

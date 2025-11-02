@@ -8,6 +8,7 @@ from typing import Dict, Iterable, List, Optional, Sequence
 import yaml
 from google.cloud import datastore
 
+
 @dataclass
 class AppConfig:
     project_id: Optional[str] = None
@@ -64,7 +65,7 @@ def load_config(path: Optional[str] = None, overrides: Optional[Dict] = None) ->
     config.namespaces = _as_list(merged.get("namespaces"))
     config.kinds = _as_list(merged.get("kinds"))
 
-    # 🛠 Normalise: treat [""] as empty
+    # Normalise: treat [""] as empty
     if config.namespaces == [""] or config.namespaces is None:
         config.namespaces = []
     if config.kinds == [""] or config.kinds is None:
@@ -147,3 +148,4 @@ def format_size(bytes_size: int) -> str:
             return f"{size:.2f} {unit}"
         size /= 1024
     return f"{size:.2f} PB"
+

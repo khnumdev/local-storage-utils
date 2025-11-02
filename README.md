@@ -45,7 +45,7 @@ namespaces: [""]                   # Empty -> iterate all namespaces (including 
 kinds: []                          # Empty -> iterate all kinds per namespace
 
 # Optional defaults
-kind: "SourceCollectionStateEntity"  # Default for analyze-fields
+kind: "SomeKind"  # Default for analyze-fields
 
 # Cleanup
 ttl_field: "expireAt"

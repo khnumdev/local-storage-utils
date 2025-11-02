@@ -1,7 +1,7 @@
 from .config import AppConfig, load_config, build_client, list_namespaces, list_kinds, format_size
-from . import analyze_kinds as analyze_kinds
-from . import analyze_entity_fields as analyze_entity_fields
-from . import cleanup_expired as cleanup_expired
+from .analyze_kinds import analyze_kinds, get_kind_stats, estimate_entity_count_and_size
+from .analyze_entity_fields import analyze_field_contributions, print_field_summary
+from .cleanup_expired import cleanup_expired
 from . import config as config
 
 __all__ = [
@@ -12,7 +12,10 @@ __all__ = [
 	"list_kinds",
 	"format_size",
 	"analyze_kinds",
-	"analyze_entity_fields",
+	"get_kind_stats",
+	"estimate_entity_count_and_size",
+	"analyze_field_contributions",
+	"print_field_summary",
 	"cleanup_expired",
 	"config",
 ]

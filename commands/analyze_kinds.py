@@ -25,12 +25,13 @@ def get_kind_stats(client, kind: str, namespace: Optional[str] = None) -> Tuple[
     if namespace:
         stats_kind = "__Stat_Kind_Ns__"
         query = client.query(kind=stats_kind)
-        query.add_filter("kind_name", "=", kind)
-        query.add_filter("namespace_name", "=", namespace)
+        # prefer keyword-style filter to avoid positional-arg deprecation warnings
+        query.add_filter(filter=("kind_name", "=", kind))
+        query.add_filter(filter=("namespace_name", "=", namespace))
     else:
         stats_kind = "__Stat_Kind__"
         query = client.query(kind=stats_kind)
-        query.add_filter("kind_name", "=", kind)
+        query.add_filter(filter=("kind_name", "=", kind))
 
     results = list(query.fetch(limit=1))
     if results:
@@ -45,7 +46,13 @@ def estimate_entity_count_and_size(client, kind: str, namespace: Optional[str], 
     # Count with keys-only
     count_query = client.query(kind=kind, namespace=namespace or None)
     count_query.keys_only()
-    total_count = sum(1 for _ in count_query.fetch())
+    # Iterate pages to avoid building large lists in memory
+    total_count = 0
+    it = count_query.fetch()
+    for page in it.pages:
+        # each page is an iterator of entities (keys-only), count them
+        page_count = sum(1 for _ in page)
+        total_count += page_count
 
     # Sample for size
     sample_query = client.query(kind=kind, namespace=namespace or None)
@@ -78,31 +85,45 @@ def analyze_kinds(config: AppConfig, method: Optional[str] = None) -> List[Dict]
 
     print(f"Found namespaces: {namespaces}")
     from tqdm import tqdm
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     results: List[Dict] = []
     for ns in namespaces:
         kinds = config.kinds or list_kinds(client, ns)
         print(f"Namespace '{ns}': found kinds: {kinds}")
         logger.info("Analyzing namespace=%s, %d kinds", ns or "(default)", len(kinds))
-        for kind in tqdm(kinds, desc=f"Analyzing kinds in ns={ns or '(default)'}", unit="kind"):
-            if method == "stats":
-                count, total_bytes = get_kind_stats(client, kind, ns)
-                if count is None:
-                    logger.warning("Stats not found for kind=%s, ns=%s — falling back to scan", kind, ns or "(default)")
-                    count, total_bytes = estimate_entity_count_and_size(client, kind, ns)
-            elif method == "scan":
-                count, total_bytes = estimate_entity_count_and_size(client, kind, ns)
-            else:
-                raise ValueError(f"Unknown method: {method}")
 
-            results.append(
-                {
+        # Parallelize per-kind work (bounded pool)
+        max_workers = min(8, max(1, len(kinds)))
+        with ThreadPoolExecutor(max_workers=max_workers) as exe:
+            futures = {}
+
+            def _process_kind(k):
+                if method == "stats":
+                    count, total_bytes = get_kind_stats(client, k, ns)
+                    if count is None:
+                        logger.warning("Stats not found for kind=%s, ns=%s — falling back to scan", k, ns or "(default)")
+                        count, total_bytes = estimate_entity_count_and_size(client, k, ns)
+                elif method == "scan":
+                    count, total_bytes = estimate_entity_count_and_size(client, k, ns)
+                else:
+                    raise ValueError(f"Unknown method: {method}")
+
+                return {
                     "namespace": ns,
-                    "kind": kind,
+                    "kind": k,
                     "count": count,
                     "bytes": total_bytes,
                     "size": format_size(total_bytes),
                 }
-            )
+
+            for k in kinds:
+                futures[exe.submit(_process_kind, k)] = k
+
+            # Show progress as futures complete
+            for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Analyzing kinds in ns={ns or '(default)'}", unit="kind"):
+                res = fut.result()
+                results.append(res)
     return results
 
 

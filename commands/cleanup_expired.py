@@ -45,11 +45,20 @@ def cleanup_expired(
         kinds = config.kinds if config.kinds else list_kinds(client, ns)
 
         for kind in kinds:
+            # Use projection to fetch only the TTL field and key to reduce payload
             query = client.query(kind=kind, namespace=ns or None)
+            try:
+                query.projection = [config.ttl_field]
+            except Exception:
+                # older client versions may not support projection assignment; ignore
+                pass
+
             to_delete: List[datastore.Key] = []
-            entities = list(query.fetch())
             from tqdm import tqdm
-            for entity in tqdm(entities, desc=f"Scanning {kind} in ns={ns or '(default)'}", unit="entity"):
+            # Stream entities to avoid holding all in memory and show progress
+            it = query.fetch()
+            for entity in tqdm(it, desc=f"Scanning {kind} in ns={ns or '(default)'}", unit="entity"):
+                # entity may only contain projected fields
                 expire_at = entity.get(config.ttl_field)
                 expired = expire_at is None if config.delete_missing_ttl else False
                 if not expired and expire_at is not None:
@@ -72,9 +81,18 @@ def cleanup_expired(
             else:
                 deleted = 0
                 if to_delete:
-                    for batch in tqdm(list(chunked(to_delete, config.batch_size)), desc=f"Deleting {kind} in ns={ns or '(default)'}", unit="batch"):
-                        client.delete_multi(batch)
-                        deleted += len(batch)
+                    # Prepare batches
+                    batches = list(chunked(to_delete, config.batch_size))
+                    # Parallelize deletion of batches; keep max workers modest to avoid overwhelming emulator
+                    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+                    max_workers = min(8, max(1, len(batches)))
+                    with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                        futures = {exe.submit(client.delete_multi, list(b)): b for b in batches}
+                        for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Deleting {kind} in ns={ns or '(default)'}", unit="batch"):
+                            # ensure any exceptions bubble
+                            fut.result()
+                            deleted += len(futures[fut])
                 logger.info(
                     "ns=%s kind=%s deleted %d expired entities",
                     ns or "(default)",

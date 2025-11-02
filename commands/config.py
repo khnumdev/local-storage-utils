@@ -29,6 +29,10 @@ class AppConfig:
 
     # Analysis settings
     group_by_field: Optional[str] = None
+    # How many entities to sample per-kind/per-group for analysis (to bound work)
+    sample_size: int = 500
+    # Whether to enable parallel processing for analysis and cleanup (ThreadPool)
+    enable_parallel: bool = True
 
     # Logging
     log_level: str = "INFO"
@@ -80,6 +84,9 @@ def load_config(path: Optional[str] = None, overrides: Optional[Dict] = None) ->
     config.batch_size = int(merged.get("batch_size", config.batch_size))
 
     config.group_by_field = merged.get("group_by_field", config.group_by_field)
+    # Optional sample size for analysis commands
+    config.sample_size = int(merged.get("sample_size", config.sample_size))
+    config.enable_parallel = bool(merged.get("enable_parallel", config.enable_parallel))
 
     config.log_level = str(merged.get("log_level", config.log_level)).upper()
 

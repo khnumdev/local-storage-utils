@@ -43,10 +43,28 @@ jobs:
       - name: Security audit
         run: |
           pip-audit -r requirements.txt || true
-      - name: Semantic Release (version, tag, GitHub release, PyPI)
-        # Choose which PYPI token to provide based on the optional dispatch input.
-        # If manually dispatched with publish_target=testpypi, the workflow will use TEST_PYPI_API_TOKEN.
+      - name: Publish package (semantic-release or initial twine upload)
         env:
+          PUBLISH_TARGET: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.publish_target || 'pypi' }}
           PYPI_TOKEN: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_target == 'testpypi') && secrets.TEST_PYPI_API_TOKEN || secrets.PYPI_API_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: semantic-release publish
+        run: |
+          set -euo pipefail
+          git fetch --tags || true
+          TAGS_COUNT=$(git tag -l | wc -l | tr -d ' ')
+          echo "Found ${TAGS_COUNT} tags"
+          if [ "${TAGS_COUNT}" -eq 0 ]; then
+            echo "No tags found; performing initial upload via twine to ${PUBLISH_TARGET}"
+            python -m pip install --upgrade pip
+            python -m pip install build twine
+            python -m build
+            if [ "${PUBLISH_TARGET}" = "testpypi" ]; then
+              python -m twine upload --repository-url https://test.pypi.org/legacy/ -u __token__ -p "${PYPI_TOKEN}" dist/*
+            else
+              python -m twine upload -u __token__ -p "${PYPI_TOKEN}" dist/*
+            fi
+            echo "Initial upload complete"
+          else
+            echo "Tags present; running semantic-release"
+            semantic-release publish
+          fi

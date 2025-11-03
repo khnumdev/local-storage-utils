@@ -46,6 +46,9 @@ local-storage-utils = "cli:app"
 where = ["."]
 include = ["commands*"]
 
+[tool.setuptools]
+py-modules = ["cli"]
+
 [tool.black]
 line-length = 100
 

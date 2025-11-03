@@ -44,108 +44,70 @@ emulator_host: "localhost:8010"   # If set, uses Datastore Emulator
 namespaces: [""]                   # Empty -> iterate all namespaces (including default "")
 kinds: []                          # Empty -> iterate all kinds per namespace
 
-# Optional defaults
-kind: "SomeKind"  # Default for analyze-fields
+ # local-storage-utils — Quickstart
 
-# Cleanup
-ttl_field: "expireAt"
-delete_missing_ttl: true
-batch_size: 500
+ Lightweight utilities for analyzing and cleaning Datastore (Firestore in Datastore mode). Works with the
+ Datastore emulator for local integration testing or GCP when using Application Default Credentials.
 
-# Analysis
-group_by_field: null
+ Quick overview
+ - CLI: run commands via `python3 cli.py <command>` (or install the package and use the entrypoint).
+ - Makefile: convenience targets are provided to create a venv, install deps, and run tests locally.
 
-# Logging
-log_level: "INFO"
-```
-
-## CLI usage
-
+ Quickstart (from source)
 ```bash
-# Kind-level counts and size estimates
-lsu analyze-kinds --project my-project
-
-# Use all namespaces/kinds by default, or restrict explicitly
-lsu analyze-kinds --namespace "" --namespace tenant-a --kind SourceCollectionStateEntity
-
-# Field contribution analysis (falls back to config.kind/config.namespace if not provided)
-lsu analyze-fields --kind SourceCollectionStateEntity --namespace "" --group-by batchId
-
-# TTL cleanup across namespaces/kinds (dry-run)
-lsu cleanup --ttl-field expireAt --dry-run
-
-# TTL cleanup restricted to specific namespaces/kinds
-lsu cleanup --namespace "" --namespace tenant-a --kind pipeline-job
-```
-
-Use `--help` on any command for full options. Config can be provided via `config.yaml` or flags.
-
-## Development
-
-- Create and activate a virtual environment (recommended):
-
-```bash
+git clone <this-repo-url>
+cd local-storage-utils
+# create a venv and install the package in editable mode
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -U pip
-```
-
-- Install the package in editable mode with developer dependencies:
-
-```bash
-# Preferred: use the optional dev extras if your environment supports them
-pip install -e .[dev]
-
-# Or: install package then dev requirements
+pip install -U pip
 pip install -e .
-pip install pytest google-cloud-datastore tqdm
 ```
 
-- Run tests using the venv python (ensures google-cloud packages are available):
+Makefile shortcuts
+ - `make venv` — create `.venv` and install package in editable mode
+ - `make unit` — run fast unit tests
+ - `make integration` — run integration tests (starts/seeds emulator when configured)
 
+Use these targets to get a working dev environment quickly.
+
+Basic CLI examples
 ```bash
-.venv/bin/python -m pytest -q
+# list kinds (scans stats or samples)
+python3 cli.py analyze-kinds --project my-project
+
+# analyze fields for a kind
+python3 cli.py analyze-fields --kind MyKind --group-by batchId
+
+# dry-run cleanup sample
+python3 cli.py cleanup --ttl-field expireAt --dry-run
 ```
 
-- Lint/format (optional if you use pre-commit/CI):
+Configuration
+- Local `config.yaml` is supported; CLI flags override config values.
+- Example keys: `project_id`, `emulator_host`, `namespaces`, `kinds`, `kind`, `ttl_field`, `batch_size`, `sample_size`, `enable_parallel`.
 
+Emulator & integration testing
+- Start & seed emulator locally:
+  - `./scripts/run_emulator_local.sh` (prefers `.venv/bin/python` to run seeder)
+  - `./scripts/run_emulator_local.sh --no-seed` to skip seeding
+- The seeder accepts `SEED_COUNT` and `SEED_NS_COUNT` env vars to increase dataset size for perf tests.
+
+Run integration tests:
 ```bash
-pip install ruff black
-ruff check .
-black .
-```
-
-## Publishing
-
-- Automated: pushing to `main` triggers versioning, tagging, GitHub release, and PyPI publish via semantic-release.
-- Prerequisites:
-  - Add a PyPI token to repo secrets as `PYPI_API_TOKEN`.
-  - Use conventional commits for proper versioning.
-
-Main branch should be protected (require PRs, disallow direct pushes) in repository settings.
-
-## Emulator & integration testing
-
-For integration tests that exercise the Datastore emulator, there's a small helper script that
-starts the emulator, waits for it to become healthy, and seeds it with deterministic test data:
-
-```bash
-# start emulator and seed using the project's .venv python (preferred)
-./scripts/run_emulator_local.sh
-
-# If you prefer to start the emulator without seeding (e.g. to seed manually),
-# use the --no-seed flag:
-./scripts/run_emulator_local.sh --no-seed
-```
-
-The script prefers `.venv/bin/python` if present, and falls back to `python3` or `python`.
-
-Once the emulator is running and seeded, run the integration tests with the Makefile target:
-
-```bash
-# create a venv (see Development section), install deps, then:
+# create venv and install deps (see Quickstart), then:
 make integration
 ```
 
-Integration tests will skip automatically when no emulator is available, so running `make unit`
-is a fast way to run only pure-unit tests.
+Development & tests
+- Run unit tests:
+  - `make unit` (fast)
+- Run full test suite locally:
+  - `make integration`
+
+Notes
+- `sample_size` bounds per-kind/group analysis to avoid scanning entire datasets. Set to 0 or `null` in config to disable sampling.
+- `enable_parallel` (default true) enables multi-threaded processing during analysis and deletion; set to false to force single-threaded behavior.
+
+If you'd like a short walkthrough or to change the default Makefile targets, tell me what you'd prefer and I can adjust the README or Makefile.
+pip install ruff black

@@ -21,6 +21,9 @@ unit: deps
 integration: deps
 	$(PY) -m pytest -q
 
+cli: deps
+	$(PY) cli.py
+
 # Default test target: run unit tests
 test: unit
 

@@ -18,22 +18,41 @@ jobs:
         with:
           project_id: dummy-project
           install_components: 'beta'
+      - name: Install Java & netcat (required by emulator)
+        run: |
+          sudo apt-get update
+          # Datastore emulator requires a JRE on the runner
+          sudo apt-get install -y default-jre-headless netcat-openbsd
+          java -version || true
+      - name: Install Datastore emulator component
+        run: |
+          # Ensure the datastore emulator component is installed in Cloud SDK
+          gcloud --quiet components install cloud-datastore-emulator || true
+          echo "gcloud components:" && gcloud components list || true
+
       - name: Start Datastore Emulator
         run: |
-          gcloud beta emulators datastore start --host-port=localhost:8010 --project=dummy-project &
-          sleep 10
+          # Start emulator in background and capture logs for debugging
+          gcloud beta emulators datastore start --host-port=127.0.0.1:8010 --project=dummy-project > emu.log 2>&1 &
+          # Give the emulator a bit more time to initialize before polling
+          sleep 15
       - name: Wait for Datastore Emulator to be ready
         run: |
-          for i in {1..30}; do
-            if nc -z localhost 8010; then
+          # Poll for the listening port, printing the last lines of the emulator log each loop for diagnostics
+          for i in {1..60}; do
+            if nc -z 127.0.0.1 8010; then
               echo "Datastore emulator is up!"
               break
             fi
             echo "Waiting for emulator... ($i)"
+            echo "--- emu.log (tail) ---"
+            tail -n 100 emu.log || true
             sleep 1
           done
-          if ! nc -z localhost 8010; then
+          if ! nc -z 127.0.0.1 8010; then
             echo "Emulator did not start in time!" >&2
+            echo "Full emulator log:" >&2
+            cat emu.log >&2 || true
             exit 1
           fi
       - name: Set environment variables

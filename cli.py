@@ -128,4 +128,11 @@ def cmd_cleanup(
     typer.echo(f"Total entities {'to delete' if dry_run else 'deleted'}: {deleted_sum}")
 
 if __name__ == "__main__":
+    import sys
+
+    # If invoked with no subcommand/arguments, show help (list available commands/options)
+    if len(sys.argv) == 1:
+        # append --help so Typer/Click prints the global help instead of raising Missing command
+        sys.argv.append("--help")
+
     app()

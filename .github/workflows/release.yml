@@ -3,6 +3,13 @@ name: release
 on:
   push:
     branches: [ main ]
+  # Allow manual dispatch to choose publishing target (pypi or testpypi)
+  workflow_dispatch:
+    inputs:
+      publish_target:
+        description: 'Where to publish: pypi or testpypi'
+        required: false
+        default: 'pypi'
 
 jobs:
   test:
@@ -37,7 +44,9 @@ jobs:
         run: |
           pip-audit -r requirements.txt || true
       - name: Semantic Release (version, tag, GitHub release, PyPI)
+        # Choose which PYPI token to provide based on the optional dispatch input.
+        # If manually dispatched with publish_target=testpypi, the workflow will use TEST_PYPI_API_TOKEN.
         env:
-          PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          PYPI_TOKEN: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_target == 'testpypi') && secrets.TEST_PYPI_API_TOKEN || secrets.PYPI_API_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: semantic-release publish

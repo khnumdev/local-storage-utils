@@ -34,15 +34,36 @@ pip install -e .
 - Any CLI flag overrides values from `config.yaml`.
 - If neither config nor flags provide a value, the tool falls back to environment variables (for emulator detection) or sensible defaults.
 
-Example `config.yaml`:
+Example `config.yaml` (full example with comments):
 
 ```yaml
-project_id: "my-project"          # If omitted, ADC/env will be used
-emulator_host: "localhost:8010"   # If set, uses Datastore Emulator
+# Project / environment
+project_id: "my-project"          # (string) GCP project id. If omitted, ADC or DATASTORE_PROJECT_ID env var will be used.
+emulator_host: "localhost:8010"   # (string) Datastore emulator host (host:port). If set, the emulator path is used.
 
-# Explicit filters (empty means all)
-namespaces: [""]                   # Empty -> iterate all namespaces (including default "")
-kinds: []                          # Empty -> iterate all kinds per namespace
+# Explicit filters (empty -> iterate all)
+namespaces: [""]                   # (list) Namespaces to include. [""] means include default namespace and allow discovery of others.
+kinds: []                            # (list) Kinds to include. Empty/omit means discover all kinds per namespace.
+
+# Defaults used by some commands (optional)
+kind: ""                            # (string) Default kind used by analyze-fields when CLI --kind is not provided.
+namespace: ""                       # (string) Default namespace used when CLI --namespace is omitted.
+
+# Cleanup settings
+ttl_field: "expireAt"               # (string) Property name that contains the TTL/expiry timestamp.
+delete_missing_ttl: true              # (bool) If true, entities missing the TTL field will be deleted by cleanup.
+batch_size: 500                       # (int) Number of keys to delete per batch when running cleanup (tunable).
+
+# Analysis settings
+group_by_field: null                  # (string|null) Field name to group analysis by (e.g., batchId). Null means no grouping.
+sample_size: 500                      # (int) Max entities to sample per-kind/per-group to bound analysis work. Set 0 or null to disable sampling.
+enable_parallel: true                 # (bool) Enable multi-threaded processing for analysis and deletion. Set false to force single-threaded.
+
+# Logging
+log_level: "INFO"                   # (string) Logging level (DEBUG, INFO, WARNING, ERROR).
+```
+
+The keys above map directly to CLI flags (CLI flags override values in `config.yaml`). Omit any option to use sensible defaults.
 
  # local-storage-utils — Quickstart
 
@@ -104,6 +125,19 @@ Development & tests
   - `make unit` (fast)
 - Run full test suite locally:
   - `make integration`
+
+Publishing
+-------
+
+This project uses the `release` workflow to publish releases to PyPI. Follow the packaging tutorial for a complete guide on packaging and publishing: https://packaging.python.org/en/latest/tutorials/packaging-projects/
+
+We support publishing to either TestPyPI (for dry runs) or the real PyPI. The workflow can be triggered automatically on pushes to `main` or manually via the Actions UI (use the "Run workflow" button). When you run it manually you can set the `publish_target` input to `testpypi` to publish to TestPyPI instead of PyPI.
+
+Secrets and tokens
+- For production publishing to the real PyPI, set the repository secret named `PYPI_API_TOKEN` with a PyPI API token.
+- For test publishing to TestPyPI, set the repository secret named `TEST_PYPI_API_TOKEN` with a TestPyPI API token.
+
+The release workflow selects the appropriate token based on the `publish_target` input. Use TestPyPI first to validate packaging and metadata before publishing to the real index.
 
 Notes
 - `sample_size` bounds per-kind/group analysis to avoid scanning entire datasets. Set to 0 or `null` in config to disable sampling.

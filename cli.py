@@ -10,7 +10,7 @@ from commands.analyze_kinds import analyze_kinds, print_summary_table
 from commands.analyze_entity_fields import analyze_field_contributions, print_field_summary
 from commands.cleanup_expired import cleanup_expired
 
-app = typer.Typer(help="Utilities for analyzing and managing local Datastore/Firestore (Datastore mode)")
+app = typer.Typer(help="Utilities for analyzing and managing local Datastore/Firestore (Datastore mode)", no_args_is_help=True)
 
 # Aliases with flags only — no defaults here
 ConfigOpt = Annotated[Optional[str], typer.Option("--config", help="Path to config.yaml")]

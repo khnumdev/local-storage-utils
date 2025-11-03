@@ -14,6 +14,29 @@ pip install local-storage-utils
 
 This installs the `lsu` CLI.
 
+Installing from TestPyPI (for dry-runs)
+-------------------------------------
+
+If you want to test publishing to TestPyPI and install the package from the test index, prefer doing that inside a virtual environment. This avoids the "externally-managed-environment" / PEP 668 error you saw when trying to install system-wide on Debian/Ubuntu.
+
+Recommended steps:
+
+```bash
+# create and activate a virtualenv
+python3 -m venv .venv
+source .venv/bin/activate
+
+# upgrade pip in the venv
+python -m pip install --upgrade pip
+
+# install from TestPyPI; use --extra-index-url so runtime dependencies are resolved from the real PyPI
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple local-storage-utils
+```
+
+Notes:
+- The error "externally-managed-environment" happens when pip is blocked from modifying a system Python managed by the OS (PEP 668). The recommended fix is to use a virtual environment or pipx — do not use `--break-system-packages` unless you understand the risks.
+- If you prefer `pipx` for isolated CLI installs, use `pipx install` inside a separate environment or consult pipx docs for installing from alternate indexes.
+
 ## Install (from source)
 
 git clone <this-repo-url>

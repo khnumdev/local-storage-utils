@@ -1,5 +1,9 @@
 # local-storage-utils
 
+[![CI](https://github.com/khnumdev/local-storage-utils/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/khnumdev/local-storage-utils/actions/workflows/ci.yml)
+[![Build](https://github.com/khnumdev/local-storage-utils/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/khnumdev/local-storage-utils/actions/workflows/build.yml)
+[![Release](https://github.com/khnumdev/local-storage-utils/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/khnumdev/local-storage-utils/actions/workflows/release.yml)
+
 Utilities for analyzing and managing local Datastore/Firestore (Datastore mode) data. Works with both the Datastore Emulator and GCP using Application Default Credentials.
 
 ## Install (PyPI)

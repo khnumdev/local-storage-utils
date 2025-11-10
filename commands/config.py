@@ -37,6 +37,9 @@ class AppConfig:
     # Logging
     log_level: str = "INFO"
 
+    # Drive sync settings
+    local_db_path: Optional[str] = None
+
 
 def _as_list(value: Optional[Iterable[str]]) -> List[str]:
     if value is None:
@@ -89,6 +92,8 @@ def load_config(path: Optional[str] = None, overrides: Optional[Dict] = None) ->
     config.enable_parallel = bool(merged.get("enable_parallel", config.enable_parallel))
 
     config.log_level = str(merged.get("log_level", config.log_level)).upper()
+
+    config.local_db_path = merged.get("local_db_path", config.local_db_path)
 
     _configure_logging(config.log_level)
     return config
@@ -155,4 +160,3 @@ def format_size(bytes_size: int) -> str:
             return f"{size:.2f} {unit}"
         size /= 1024
     return f"{size:.2f} PB"
-

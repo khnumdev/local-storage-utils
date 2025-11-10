@@ -9,19 +9,30 @@ from commands.config import AppConfig, load_config
 from commands.analyze_kinds import analyze_kinds, print_summary_table
 from commands.analyze_entity_fields import analyze_field_contributions, print_field_summary
 from commands.cleanup_expired import cleanup_expired
+from commands.drive_sync import push_to_drive, pull_from_drive
 
-app = typer.Typer(help="Utilities for analyzing and managing local Datastore/Firestore (Datastore mode)", no_args_is_help=True)
+app = typer.Typer(
+    help="Utilities for analyzing and managing local Datastore/Firestore (Datastore mode)",
+    no_args_is_help=True,
+)
 
 # Aliases with flags only — no defaults here
 ConfigOpt = Annotated[Optional[str], typer.Option("--config", help="Path to config.yaml")]
 ProjectOpt = Annotated[Optional[str], typer.Option("--project", help="GCP/Emulator project id")]
-EmulatorHostOpt = Annotated[Optional[str], typer.Option("--emulator-host", help="Emulator host, e.g. localhost:8010")]
+EmulatorHostOpt = Annotated[
+    Optional[str], typer.Option("--emulator-host", help="Emulator host, e.g. localhost:8010")
+]
 LogLevelOpt = Annotated[Optional[str], typer.Option("--log-level", help="Logging level")]
 KindsOpt = Annotated[
     Optional[List[str]],
-    typer.Option("--kind", "-k", help="Kinds to process (omit or empty to process all in each namespace)")
+    typer.Option(
+        "--kind", "-k", help="Kinds to process (omit or empty to process all in each namespace)"
+    ),
 ]
-SingleKindOpt = Annotated[Optional[str], typer.Option("--kind", "-k", help="Kind to analyze (falls back to config.kind)")]
+SingleKindOpt = Annotated[
+    Optional[str], typer.Option("--kind", "-k", help="Kind to analyze (falls back to config.kind)")
+]
+
 
 def _load_cfg(
     config_path: Optional[str],
@@ -37,6 +48,7 @@ def _load_cfg(
     if log_level:
         overrides["log_level"] = log_level
     return load_config(config_path, overrides)
+
 
 @app.command("analyze-kinds")
 def cmd_analyze_kinds(
@@ -64,17 +76,31 @@ def cmd_analyze_kinds(
     else:
         print_summary_table(rows)
 
+
 @app.command("analyze-fields")
 def cmd_analyze_fields(
     kind: SingleKindOpt = None,
-    namespace: Annotated[Optional[str], typer.Option("--namespace", "-n", help="Namespace to query (omit to use all)")] = None,
-    group_by: Annotated[Optional[str], typer.Option("--group-by", help="Group results by this field value (falls back to config.group_by_field)")] = None,
-    only_field: Annotated[Optional[List[str]], typer.Option("--only-field", help="Only consider these fields")] = None,
+    namespace: Annotated[
+        Optional[str],
+        typer.Option("--namespace", "-n", help="Namespace to query (omit to use all)"),
+    ] = None,
+    group_by: Annotated[
+        Optional[str],
+        typer.Option(
+            "--group-by",
+            help="Group results by this field value (falls back to config.group_by_field)",
+        ),
+    ] = None,
+    only_field: Annotated[
+        Optional[List[str]], typer.Option("--only-field", help="Only consider these fields")
+    ] = None,
     config: ConfigOpt = None,
     project: ProjectOpt = None,
     emulator_host: EmulatorHostOpt = None,
     log_level: LogLevelOpt = None,
-    output_json: Annotated[Optional[str], typer.Option("--output-json", help="Write raw JSON results to file")] = None,
+    output_json: Annotated[
+        Optional[str], typer.Option("--output-json", help="Write raw JSON results to file")
+    ] = None,
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
 
@@ -100,6 +126,7 @@ def cmd_analyze_fields(
     else:
         print_field_summary(result)
 
+
 @app.command("cleanup")
 def cmd_cleanup(
     config: ConfigOpt = None,
@@ -107,10 +134,24 @@ def cmd_cleanup(
     emulator_host: EmulatorHostOpt = None,
     log_level: LogLevelOpt = None,
     kind: KindsOpt = None,
-    ttl_field: Annotated[Optional[str], typer.Option("--ttl-field", help="TTL field name (falls back to config.ttl_field)")] = None,
-    delete_missing_ttl: Annotated[Optional[bool], typer.Option("--delete-missing-ttl", help="Delete when TTL field is missing (falls back to config.delete_missing_ttl)")] = None,
-    batch_size: Annotated[Optional[int], typer.Option("--batch-size", help="Delete batch size (falls back to config.batch_size)")] = None,
-    dry_run: Annotated[bool, typer.Option("--dry-run", help="Only report counts; do not delete")] = False,
+    ttl_field: Annotated[
+        Optional[str],
+        typer.Option("--ttl-field", help="TTL field name (falls back to config.ttl_field)"),
+    ] = None,
+    delete_missing_ttl: Annotated[
+        Optional[bool],
+        typer.Option(
+            "--delete-missing-ttl",
+            help="Delete when TTL field is missing (falls back to config.delete_missing_ttl)",
+        ),
+    ] = None,
+    batch_size: Annotated[
+        Optional[int],
+        typer.Option("--batch-size", help="Delete batch size (falls back to config.batch_size)"),
+    ] = None,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Only report counts; do not delete")
+    ] = False,
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
 
@@ -126,6 +167,46 @@ def cmd_cleanup(
     totals = cleanup_expired(cfg, dry_run=dry_run)
     deleted_sum = sum(totals.values())
     typer.echo(f"Total entities {'to delete' if dry_run else 'deleted'}: {deleted_sum}")
+
+
+@app.command("push")
+def cmd_push(
+    version: Annotated[
+        Optional[str], typer.Argument(help="Version name (defaults to today's date YYYY-mm-DD)")
+    ] = None,
+    overwrite: Annotated[
+        bool, typer.Option("-o", "--overwrite", help="Overwrite existing file with same name")
+    ] = False,
+    local_db: Annotated[
+        Optional[str],
+        typer.Option(
+            "--local-db", help="Path to local-db binary (falls back to config.local_db_path)"
+        ),
+    ] = None,
+    config: ConfigOpt = None,
+    log_level: LogLevelOpt = None,
+):
+    cfg = _load_cfg(config, None, None, log_level)
+    push_to_drive(cfg, version, overwrite, local_db)
+
+
+@app.command("pull")
+def cmd_pull(
+    version: Annotated[
+        Optional[str], typer.Argument(help="Version name (omit to download latest)")
+    ] = None,
+    local_db: Annotated[
+        Optional[str],
+        typer.Option(
+            "--local-db", help="Path to local-db binary (falls back to config.local_db_path)"
+        ),
+    ] = None,
+    config: ConfigOpt = None,
+    log_level: LogLevelOpt = None,
+):
+    cfg = _load_cfg(config, None, None, log_level)
+    pull_from_drive(cfg, version, local_db)
+
 
 if __name__ == "__main__":
     import sys

@@ -53,10 +53,32 @@ pip install -e .
 - If you see "externally-managed-environment", you are attempting a system-wide install. Always install into a virtual environment:
   - Create a venv: `python3 -m venv .venv && source .venv/bin/activate`
   - Then use the venv pip: `python -m pip install -U pip && pip install -e .`
-  - If `python3-venv` is not installed:
 
+#### Installing Python 3 (if not already installed)
+
+**macOS:**
 ```bash
-sudo apt-get update && sudo apt-get install -y python3-venv
+# Install Python 3 using Homebrew
+brew install python@3.12
+```
+
+**Linux (Debian/Ubuntu):**
+```bash
+# Install Python 3 and venv support
+sudo apt-get update && sudo apt-get install -y python3 python3-venv python3-pip
+```
+
+**Linux (Fedora/RHEL):**
+```bash
+# Install Python 3 and venv support
+sudo dnf install python3 python3-pip
+```
+
+**Linux (using Homebrew):**
+```bash
+# Install Homebrew first (if not already installed): https://brew.sh
+# Then install Python 3
+brew install python@3.12
 ```
 
 ## Configuration

@@ -14,8 +14,7 @@ pip install local-storage-utils
 
 This installs the `lsu` CLI.
 
-Installing from TestPyPI (for dry-runs)
--------------------------------------
+## Installing from TestPyPI (for dry-runs)
 
 If you want to test publishing to TestPyPI and install the package from the test index, prefer doing that inside a virtual environment. This avoids the "externally-managed-environment" / PEP 668 error you saw when trying to install system-wide on Debian/Ubuntu.
 
@@ -39,21 +38,26 @@ Notes:
 
 ## Install (from source)
 
+```bash
 git clone <this-repo-url>
 cd local-storage-utils
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -U pip
 pip install -e .
+```
 
 ### Troubleshooting local installs
+
 - If you see "Command 'python' not found", use `python3 -m venv .venv` (above). Inside the venv, `python` will point to Python 3.
 - If you see "externally-managed-environment", you are attempting a system-wide install. Always install into a virtual environment:
   - Create a venv: `python3 -m venv .venv && source .venv/bin/activate`
   - Then use the venv pip: `python -m pip install -U pip && pip install -e .`
-  ```bash
-  sudo apt-get update && sudo apt-get install -y python3-venv
-  ```
+  - If `python3-venv` is not installed:
+
+```bash
+sudo apt-get update && sudo apt-get install -y python3-venv
+```
 
 ## Configuration
 
@@ -92,16 +96,16 @@ log_level: "INFO"                   # (string) Logging level (DEBUG, INFO, WARNI
 
 The keys above map directly to CLI flags (CLI flags override values in `config.yaml`). Omit any option to use sensible defaults.
 
- # local-storage-utils — Quickstart
+## Quickstart
 
- Lightweight utilities for analyzing and cleaning Datastore (Firestore in Datastore mode). Works with the
- Datastore emulator for local integration testing or GCP when using Application Default Credentials.
+Lightweight utilities for analyzing and cleaning Datastore (Firestore in Datastore mode). Works with the Datastore emulator for local integration testing or GCP when using Application Default Credentials.
 
- Quick overview
- - CLI: run commands via `python3 cli.py <command>` (or install the package and use the entrypoint).
- - Makefile: convenience targets are provided to create a venv, install deps, and run tests locally.
+### Quick overview
 
- Quickstart (from source)
+- CLI: run commands via `python3 cli.py <command>` (or install the package and use the entrypoint).
+- Makefile: convenience targets are provided to create a venv, install deps, and run tests locally.
+
+### Quickstart (from source)
 ```bash
 git clone <this-repo-url>
 cd local-storage-utils
@@ -112,14 +116,15 @@ pip install -U pip
 pip install -e .
 ```
 
-Makefile shortcuts
- - `make venv` — create `.venv` and install package in editable mode
- - `make unit` — run fast unit tests
- - `make integration` — run integration tests (starts/seeds emulator when configured)
+### Makefile shortcuts
+
+- `make venv` — create `.venv` and install package in editable mode
+- `make unit` — run fast unit tests
+- `make integration` — run integration tests (starts/seeds emulator when configured)
 
 Use these targets to get a working dev environment quickly.
 
-Basic CLI examples
+### Basic CLI examples
 ```bash
 # list kinds (scans stats or samples)
 python3 cli.py analyze-kinds --project my-project
@@ -131,44 +136,47 @@ python3 cli.py analyze-fields --kind MyKind --group-by batchId
 python3 cli.py cleanup --ttl-field expireAt --dry-run
 ```
 
-Configuration
+### Configuration
+
 - Local `config.yaml` is supported; CLI flags override config values.
 - Example keys: `project_id`, `emulator_host`, `namespaces`, `kinds`, `kind`, `ttl_field`, `batch_size`, `sample_size`, `enable_parallel`.
 
-Emulator & integration testing
+### Emulator & integration testing
+
 - Start & seed emulator locally:
   - `./scripts/run_emulator_local.sh` (prefers `.venv/bin/python` to run seeder)
   - `./scripts/run_emulator_local.sh --no-seed` to skip seeding
 - The seeder accepts `SEED_COUNT` and `SEED_NS_COUNT` env vars to increase dataset size for perf tests.
 
 Run integration tests:
+
 ```bash
 # create venv and install deps (see Quickstart), then:
 make integration
 ```
 
-Development & tests
+### Development & tests
+
 - Run unit tests:
   - `make unit` (fast)
 - Run full test suite locally:
   - `make integration`
 
-Publishing
--------
+## Publishing
 
 This project uses the `release` workflow to publish releases to PyPI. Follow the packaging tutorial for a complete guide on packaging and publishing: https://packaging.python.org/en/latest/tutorials/packaging-projects/
 
 We support publishing to either TestPyPI (for dry runs) or the real PyPI. The workflow can be triggered automatically on pushes to `main` or manually via the Actions UI (use the "Run workflow" button). When you run it manually you can set the `publish_target` input to `testpypi` to publish to TestPyPI instead of PyPI.
 
-Secrets and tokens
+### Secrets and tokens
 - For production publishing to the real PyPI, set the repository secret named `PYPI_API_TOKEN` with a PyPI API token.
 - For test publishing to TestPyPI, set the repository secret named `TEST_PYPI_API_TOKEN` with a TestPyPI API token.
 
 The release workflow selects the appropriate token based on the `publish_target` input. Use TestPyPI first to validate packaging and metadata before publishing to the real index.
 
-Notes
+## Notes
+
 - `sample_size` bounds per-kind/group analysis to avoid scanning entire datasets. Set to 0 or `null` in config to disable sampling.
 - `enable_parallel` (default true) enables multi-threaded processing during analysis and deletion; set to false to force single-threaded behavior.
 
 If you'd like a short walkthrough or to change the default Makefile targets, tell me what you'd prefer and I can adjust the README or Makefile.
-pip install ruff black

@@ -169,8 +169,11 @@ def cmd_cleanup(
     typer.echo(f"Total entities {'to delete' if dry_run else 'deleted'}: {deleted_sum}")
 
 
-@app.command("push")
-def cmd_push(
+db_app = typer.Typer(help="Database backup management commands", no_args_is_help=True)
+
+
+@db_app.command("push")
+def db_push(
     version: Annotated[
         Optional[str], typer.Argument(help="Version name (defaults to today's date YYYY-mm-DD)")
     ] = None,
@@ -190,8 +193,8 @@ def cmd_push(
     push_to_drive(cfg, version, overwrite, local_db)
 
 
-@app.command("pull")
-def cmd_pull(
+@db_app.command("pull")
+def db_pull(
     version: Annotated[
         Optional[str], typer.Argument(help="Version name (omit to download latest)")
     ] = None,
@@ -206,6 +209,9 @@ def cmd_pull(
 ):
     cfg = _load_cfg(config, None, None, log_level)
     pull_from_drive(cfg, version, local_db)
+
+
+app.add_typer(db_app, name="db")
 
 
 if __name__ == "__main__":

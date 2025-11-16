@@ -39,6 +39,8 @@ class AppConfig:
 
     # Drive sync settings
     local_db_path: Optional[str] = None
+    # Google Drive folder name where backups are stored
+    gdrive_directory: str = "datastore"
 
 
 def _as_list(value: Optional[Iterable[str]]) -> List[str]:
@@ -94,6 +96,7 @@ def load_config(path: Optional[str] = None, overrides: Optional[Dict] = None) ->
     config.log_level = str(merged.get("log_level", config.log_level)).upper()
 
     config.local_db_path = merged.get("local_db_path", config.local_db_path)
+    config.gdrive_directory = merged.get("gdrive_directory", config.gdrive_directory)
 
     _configure_logging(config.log_level)
     return config

@@ -183,14 +183,21 @@ def db_push(
     local_db: Annotated[
         Optional[str],
         typer.Option(
-            "--local-db", help="Path to local-db binary (falls back to config.local_db_path)"
+            "--local-db",
+            help="Optional helper script path (e.g. tools/dev-env/local-db). This script may stash/restore; the actual data file comes from config.local_db_path."
         ),
     ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run", help="Do not upload to Drive, just show what would be uploaded"
+        ),
+    ] = False,
     config: ConfigOpt = None,
     log_level: LogLevelOpt = None,
 ):
     cfg = _load_cfg(config, None, None, log_level)
-    push_to_drive(cfg, version, overwrite, local_db)
+    push_to_drive(cfg, version, overwrite, local_db, dry_run=dry_run)
 
 
 @db_app.command("pull")
@@ -201,14 +208,36 @@ def db_pull(
     local_db: Annotated[
         Optional[str],
         typer.Option(
-            "--local-db", help="Path to local-db binary (falls back to config.local_db_path)"
+            "--local-db",
+            help="Optional helper script path (e.g. tools/dev-env/local-db). This script may stash/restore; the actual data file comes from config.local_db_path.",
         ),
     ] = None,
+    overwrite: Annotated[
+        bool,
+        typer.Option(
+            "--overwrite/--no-overwrite",
+            help="Whether to overwrite the local data file when restoring from Drive (default: overwrite)",
+            show_default=True,
+        ),
+    ] = True,
     config: ConfigOpt = None,
     log_level: LogLevelOpt = None,
 ):
     cfg = _load_cfg(config, None, None, log_level)
-    pull_from_drive(cfg, version, local_db)
+    pull_from_drive(cfg, version, local_db, overwrite=overwrite)
+
+
+@db_app.command("list")
+def db_list(
+    config: ConfigOpt = None,
+    log_level: LogLevelOpt = None,
+):
+    cfg = _load_cfg(config, None, None, log_level)
+    from commands.drive_sync import list_backups
+
+    backups = list_backups(cfg)
+    for b in backups:
+        typer.echo(b)
 
 
 app.add_typer(db_app, name="db")

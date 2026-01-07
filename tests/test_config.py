@@ -17,6 +17,18 @@ def test_load_config_normalizes_namespaces(tmp_path: tempfile.TemporaryDirectory
     assert cfg.kinds == []
 
 
+def test_empty_lists_mean_iterate_all():
+    """Empty namespaces and kinds lists should mean 'iterate all'."""
+    cfg = AppConfig()
+    # Default config should have empty lists
+    assert cfg.namespaces == []
+    assert cfg.kinds == []
+    
+    # Empty lists evaluate to False, triggering "iterate all" logic
+    assert not cfg.namespaces
+    assert not cfg.kinds
+
+
 def test_format_size_small_and_large():
     assert format_size(512) == "512.00 B"
     assert format_size(1024) == "1.00 KB"

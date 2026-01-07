@@ -69,10 +69,10 @@ def load_config(path: Optional[str] = None, overrides: Optional[Dict] = None) ->
     config.namespaces = _as_list(merged.get("namespaces"))
     config.kinds = _as_list(merged.get("kinds"))
 
-    # Normalise: treat [""] as empty
-    if config.namespaces == [""] or config.namespaces is None:
+    # Normalise: treat [""] as empty (meaning "iterate all")
+    if config.namespaces == [""]:
         config.namespaces = []
-    if config.kinds == [""] or config.kinds is None:
+    if config.kinds == [""]:
         config.kinds = []
 
     # Optional defaults used by some commands

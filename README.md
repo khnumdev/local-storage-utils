@@ -83,40 +83,35 @@ brew install python@3.12
 
 ## Configuration
 
-- Create a local `config.yaml` in your working directory. It is gitignored and not included in the repo.
-- Any CLI flag overrides values from `config.yaml`.
-- If neither config nor flags provide a value, the tool falls back to environment variables (for emulator detection) or sensible defaults.
+Create an optional `config.yaml` in your working directory to customize behavior. **By default, all commands iterate over all namespaces and all kinds** unless you specify filters.
 
-Example `config.yaml` (full example with comments):
+### Minimal Example
 
 ```yaml
-# Project / environment
-project_id: "my-project"          # (string) GCP project id. If omitted, ADC or DATASTORE_PROJECT_ID env var will be used.
-emulator_host: "localhost:8010"   # (string) Datastore emulator host (host:port). If set, the emulator path is used.
-
-# Explicit filters (empty -> iterate all)
-namespaces: [""]                   # (list) Namespaces to include. [""] means include default namespace and allow discovery of others.
-kinds: []                            # (list) Kinds to include. Empty/omit means discover all kinds per namespace.
-
-# Defaults used by some commands (optional)
-kind: ""                            # (string) Default kind used by analyze-fields when CLI --kind is not provided.
-namespace: ""                       # (string) Default namespace used when CLI --namespace is omitted.
-
-# Cleanup settings
-ttl_field: "expireAt"               # (string) Property name that contains the TTL/expiry timestamp.
-delete_missing_ttl: true              # (bool) If true, entities missing the TTL field will be deleted by cleanup.
-batch_size: 500                       # (int) Number of keys to delete per batch when running cleanup (tunable).
-
-# Analysis settings
-group_by_field: null                  # (string|null) Field name to group analysis by (e.g., batchId). Null means no grouping.
-sample_size: 500                      # (int) Max entities to sample per-kind/per-group to bound analysis work. Set 0 or null to disable sampling.
-enable_parallel: true                 # (bool) Enable multi-threaded processing for analysis and deletion. Set false to force single-threaded.
-
-# Logging
-log_level: "INFO"                   # (string) Logging level (DEBUG, INFO, WARNING, ERROR).
+# Optional: specify project and emulator
+project_id: "my-project"
+emulator_host: "localhost:8010"
 ```
 
-The keys above map directly to CLI flags (CLI flags override values in `config.yaml`). Omit any option to use sensible defaults.
+### Common Options
+
+```yaml
+# Optional filters (omit to process all namespaces and kinds)
+namespaces: ["custom-ns"]  # List specific namespaces, or omit to process all
+kinds: ["MyKind"]          # List specific kinds, or omit to process all
+
+# Cleanup settings
+ttl_field: "expireAt"      # Field name containing expiry timestamp
+batch_size: 500            # Delete batch size
+
+# Analysis settings
+sample_size: 500           # Max entities to sample per analysis (0 = no limit)
+```
+
+**Notes:**
+- CLI flags always override config values
+- If no config is provided, sensible defaults are used
+- Environment variables `DATASTORE_PROJECT_ID` and `DATASTORE_EMULATOR_HOST` are also supported
 
 ## Quickstart
 
@@ -148,20 +143,21 @@ Use these targets to get a working dev environment quickly.
 
 ### Basic CLI examples
 ```bash
-# list kinds (scans stats or samples)
-python3 cli.py analyze-kinds --project my-project
+# Analyze all kinds in all namespaces (default behavior)
+lsu analyze-kinds
 
-# analyze fields for a kind
-python3 cli.py analyze-fields --kind MyKind --group-by batchId
+# Analyze specific kind across all namespaces
+lsu analyze-fields --kind MyKind
 
-# dry-run cleanup sample
-python3 cli.py cleanup --ttl-field expireAt --dry-run
+# Analyze with grouping
+lsu analyze-fields --kind MyKind --group-by batchId
+
+# Dry-run cleanup for all kinds and namespaces
+lsu cleanup --dry-run
+
+# Filter to specific namespace and kind
+lsu cleanup --kind MyKind --namespace custom-ns --dry-run
 ```
-
-### Configuration
-
-- Local `config.yaml` is supported; CLI flags override config values.
-- Example keys: `project_id`, `emulator_host`, `namespaces`, `kinds`, `kind`, `ttl_field`, `batch_size`, `sample_size`, `enable_parallel`.
 
 ### Emulator & integration testing
 
@@ -198,7 +194,6 @@ The release workflow selects the appropriate token based on the `publish_target`
 
 ## Notes
 
-- `sample_size` bounds per-kind/group analysis to avoid scanning entire datasets. Set to 0 or `null` in config to disable sampling.
-- `enable_parallel` (default true) enables multi-threaded processing during analysis and deletion; set to false to force single-threaded behavior.
-
-If you'd like a short walkthrough or to change the default Makefile targets, tell me what you'd prefer and I can adjust the README or Makefile.
+- **By default, all commands iterate over all namespaces and all kinds** unless you specify filters via config or CLI flags
+- `sample_size` bounds per-kind analysis to avoid scanning entire large datasets (set to 0 to disable)
+- Multi-threaded processing is enabled by default for better performance

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
-from google.cloud import datastore
 from google.cloud.datastore.helpers import entity_to_protobuf
 
 from .config import (
@@ -17,7 +16,7 @@ from .config import (
 logger = logging.getLogger(__name__)
 
 
-def get_kind_stats(client, kind: str, namespace: Optional[str] = None) -> Tuple[Optional[int], Optional[int]]:
+def get_kind_stats(client, kind: str, namespace: str | None = None) -> tuple[int | None, int | None]:
     """
     Returns (count, bytes) for the given kind/namespace using Datastore statistics.
     Falls back to None if not found.
@@ -39,7 +38,7 @@ def get_kind_stats(client, kind: str, namespace: Optional[str] = None) -> Tuple[
     return None, None
 
 
-def estimate_entity_count_and_size(client, kind: str, namespace: Optional[str], sample_size: int = 100) -> Tuple[int, int]:
+def estimate_entity_count_and_size(client, kind: str, namespace: str | None, sample_size: int = 100) -> tuple[int, int]:
     """
     Original keys-only method: exact count, approximate bytes via sampling.
     """
@@ -65,7 +64,7 @@ def estimate_entity_count_and_size(client, kind: str, namespace: Optional[str], 
     return total_count, int(avg_size * total_count)
 
 
-def analyze_kinds(config: AppConfig, method: Optional[str] = None) -> List[Dict]:
+def analyze_kinds(config: AppConfig, method: str | None = None) -> List[Dict]:
     """
     Analyze kinds using either:
       - 'stats' (default) => fast built-in Datastore statistics

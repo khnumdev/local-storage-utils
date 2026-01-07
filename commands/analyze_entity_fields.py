@@ -56,7 +56,6 @@ def _estimate_field_contributions(
     if enable_parallel:
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        results_iter = []
         with ThreadPoolExecutor(max_workers=8) as exe:
             futures = {exe.submit(_process_entity, e): e for e in ents}
             for fut in tqdm(as_completed(futures), total=len(futures), desc="Analyzing field contributions", unit="entity"):

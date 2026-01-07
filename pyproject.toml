@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "local-storage-utils"
-version = "0.1.0"
+version = "0.1.1"
 description = "Utilities for analyzing and managing local Datastore/Firestore (Datastore mode) data"
 authors = [
   { name = "Your Name", email = "you@example.com" },

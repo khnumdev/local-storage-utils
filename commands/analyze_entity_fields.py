@@ -162,18 +162,14 @@ def analyze_field_contributions(
     sample_size = getattr(config, "sample_size", 500)
     enable_parallel = getattr(config, "enable_parallel", True)
 
-    # If no namespace provided, or config.namespaces is None/empty, iterate all namespaces
+    # If no namespace provided, iterate all namespaces
     if namespace is None:
-        if hasattr(config, "namespaces") and (not config.namespaces):
-            ns_list = list_namespaces(client)
-        else:
-            ns_list = [namespace] if namespace else list_namespaces(client)
+        ns_list = list_namespaces(client)
         results: Dict[str, Dict] = {}
         for ns in ns_list:
             results[ns or ""] = _analyze_single_namespace(
                 client, kind=kind, namespace=ns, group_by_field=group_by_field, only_fields=only_fields, sample_size=sample_size
             )
-            
         return {"by_namespace": results}
 
     # Single namespace

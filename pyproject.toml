@@ -7,7 +7,7 @@ name = "local-storage-utils"
 version = "0.1.1"
 description = "Utilities for analyzing and managing local Datastore/Firestore (Datastore mode) data"
 authors = [
-  { name = "Your Name", email = "you@example.com" },
+  { name = "andres", email = "isisosirishorus@hotmail.com" },
 ]
 readme = "README.md"
 requires-python = ">=3.9"
@@ -66,4 +66,4 @@ changelog_sections = "feature,fix,perf,refactor,docs,style,build,ci,chore"
 
 [tool.semantic_release.remote]
 name = "origin"
-repo_url = "https://github.com/your-org/local-storage-utils"
+repo_url = "https://github.com/khnumdev/local-storage-utils"

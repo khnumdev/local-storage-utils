@@ -17,7 +17,8 @@
       "Bash(sudo apt-get install -y python3.12-venv)",
       "Bash(apt-get install *)",
       "Bash(sudo -n true)",
-      "Read(//var/cache/apt/archives/**)"
+      "Read(//var/cache/apt/archives/**)",
+      "Bash(git config *)"
     ],
     "additionalDirectories": [
       "/home/andres/dev/local-storage-utils/.claude"

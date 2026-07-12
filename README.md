@@ -39,7 +39,7 @@ Notes:
 ## Install (from source)
 
 ```bash
-git clone <this-repo-url>
+git clone https://github.com/khnumdev/local-storage-utils.git
 cd local-storage-utils
 python3 -m venv .venv
 source .venv/bin/activate
@@ -124,7 +124,7 @@ Lightweight utilities for analyzing and cleaning Datastore (Firestore in Datasto
 
 ### Quickstart (from source)
 ```bash
-git clone <this-repo-url>
+git clone https://github.com/khnumdev/local-storage-utils.git
 cd local-storage-utils
 # create a venv and install the package in editable mode
 python3 -m venv .venv

@@ -8,34 +8,6 @@ set -euo pipefail
 PORT=${PORT:-8010}
 PROJECT=${PROJECT:-dummy-project}
 
-# Choose python: .venv/bin/python > python3 > python
-VENV_PY=".venv/bin/python"
-if [ -x "${VENV_PY}" ]; then
-  PY="${VENV_PY}"
-elif command -v python3 >/dev/null 2>&1; then
-  PY=python3
-elif command -v python >/dev/null 2>&1; then
-  PY=python
-else
-  echo "No python executable found (python3/python) and .venv not present" >&2
-  exit 1
-fi
-
-echo "Starting Datastore emulator on localhost:${PORT} (project=${PROJECT})"
-gcloud beta emulators datastore start --host-port=localhost:${PORT} --project=${PROJECT} &
-EM_PID=$!
-
-echo "Waiting for emulator to accept connections on localhost:${PORT}..."
-#!/usr/bin/env bash
-set -euo pipefail
-
-# Simple helper to start the Datastore emulator locally and seed it with test data.
-# Prefers the project's .venv python if available, otherwise falls back to python3 or python.
-# Requires: gcloud SDK installed and authenticated, and python deps installed in a venv (optional).
-
-PORT=${PORT:-8010}
-PROJECT=${PROJECT:-dummy-project}
-
 # Simple arg parsing: --no-seed to skip running the seed script, --help for usage
 DO_SEED=1
 while [ "$#" -gt 0 ]; do

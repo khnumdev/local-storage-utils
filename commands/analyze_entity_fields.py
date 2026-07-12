@@ -7,7 +7,7 @@ from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple
 from google.cloud import datastore
 from google.cloud.datastore.helpers import entity_to_protobuf
 
-from .config import AppConfig, build_client, format_size, list_namespaces
+from .config import AppConfig, build_client, format_size, list_namespaces, parallel_map
 
 logger = logging.getLogger(__name__)
 
@@ -54,23 +54,15 @@ def _estimate_field_contributions(
         return full_bytes, contributions
 
     if enable_parallel:
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
-        with ThreadPoolExecutor(max_workers=8) as exe:
-            futures = {exe.submit(_process_entity, e): e for e in ents}
-            for fut in tqdm(as_completed(futures), total=len(futures), desc="Analyzing field contributions", unit="entity"):
-                entity_count += 1
-                full_size, contributions = fut.result()
-                total_size += full_size
-                for f, v in contributions.items():
-                    field_totals[f] += v
+        pairs = parallel_map(ents, _process_entity, desc="Analyzing field contributions", unit="entity")
     else:
-        for entity in tqdm(ents, desc="Analyzing field contributions", unit="entity"):
-            entity_count += 1
-            full_size, contributions = _process_entity(entity)
-            total_size += full_size
-            for f, v in contributions.items():
-                field_totals[f] += v
+        pairs = [_process_entity(e) for e in tqdm(ents, desc="Analyzing field contributions", unit="entity")]
+
+    for full_size, contributions in pairs:
+        entity_count += 1
+        total_size += full_size
+        for f, v in contributions.items():
+            field_totals[f] += v
 
     return dict(field_totals), total_size, entity_count
 

@@ -9,8 +9,9 @@ from google.cloud import datastore
 from .config import (
     AppConfig,
     build_client,
-    list_namespaces,
-    list_kinds,
+    resolve_namespaces,
+    resolve_kinds,
+    parallel_map,
     chunked,
 )
 
@@ -30,19 +31,13 @@ def cleanup_expired(
     dry_run: bool = False,
 ) -> Dict[str, int]:
     client = build_client(config)
-
-    # If namespaces is None or empty, iterate all available namespaces
-    if not config.namespaces:
-        namespaces = list_namespaces(client)
-    else:
-        namespaces = config.namespaces
+    namespaces = resolve_namespaces(client, config)
 
     totals: Dict[str, int] = {}
     now = datetime.now(timezone.utc)
 
     for ns in namespaces:
-        # Determine kinds: explicit list, or all in namespace
-        kinds = config.kinds if config.kinds else list_kinds(client, ns)
+        kinds = resolve_kinds(client, config, ns)
 
         for kind in kinds:
             # Use projection to fetch only the TTL field and key to reduce payload
@@ -54,6 +49,7 @@ def cleanup_expired(
                 pass
 
             to_delete: List[datastore.Key] = []
+            warned_bad_ttl = False
             from tqdm import tqdm
             # Stream entities to avoid holding all in memory and show progress
             it = query.fetch()
@@ -64,8 +60,16 @@ def cleanup_expired(
                 if not expired and expire_at is not None:
                     try:
                         expired = expire_at < now
-                    except Exception:
-                        # If unparsable or timezone-less, skip
+                    except TypeError:
+                        # Naive (tz-less) or otherwise incomparable value; never treated as expired
+                        if not warned_bad_ttl:
+                            logger.warning(
+                                "ns=%s kind=%s: TTL field %r has an incomparable value (e.g. missing timezone) on at least one entity — those entities will never be treated as expired until fixed",
+                                ns or "(default)",
+                                kind,
+                                config.ttl_field,
+                            )
+                            warned_bad_ttl = True
                         expired = False
                 if expired:
                     to_delete.append(entity.key)
@@ -81,18 +85,14 @@ def cleanup_expired(
             else:
                 deleted = 0
                 if to_delete:
-                    # Prepare batches
                     batches = list(chunked(to_delete, config.batch_size))
-                    # Parallelize deletion of batches; keep max workers modest to avoid overwhelming emulator
-                    from concurrent.futures import ThreadPoolExecutor, as_completed
-
-                    max_workers = min(8, max(1, len(batches)))
-                    with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                        futures = {exe.submit(client.delete_multi, list(b)): b for b in batches}
-                        for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Deleting {kind} in ns={ns or '(default)'}", unit="batch"):
-                            # ensure any exceptions bubble
-                            fut.result()
-                            deleted += len(futures[fut])
+                    counts = parallel_map(
+                        batches,
+                        lambda b: (client.delete_multi(list(b)), len(b))[1],
+                        desc=f"Deleting {kind} in ns={ns or '(default)'}",
+                        unit="batch",
+                    )
+                    deleted = sum(counts)
                 logger.info(
                     "ns=%s kind=%s deleted %d expired entities",
                     ns or "(default)",

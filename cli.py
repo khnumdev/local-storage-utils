@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 from typing import List, Optional, Annotated
 
@@ -45,21 +46,35 @@ def cmd_analyze_kinds(
     emulator_host: EmulatorHostOpt = None,
     log_level: LogLevelOpt = None,
     kind: KindsOpt = None,
+    method: Annotated[
+        Optional[str],
+        typer.Option("--method", help="'stats' (fast, may be stale) or 'scan' (exact, slower). Falls back to config.method, defaults to 'stats'."),
+    ] = None,
     output: Annotated[Optional[str], typer.Option("--output", help="Output CSV file path")] = None,
+    output_json: Annotated[Optional[str], typer.Option("--output-json", help="Write raw JSON results to file")] = None,
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
 
     if kind is not None:
         # Normalise: treat [""] as empty (all kinds)
         cfg.kinds = [k for k in kind if k]  # drop empty strings
+    if method is not None:
+        if method not in ("stats", "scan"):
+            raise typer.BadParameter("--method must be 'stats' or 'scan'")
+        cfg.method = method
+
     rows = analyze_kinds(cfg)
 
-    if output:
-        with open(output, "w", encoding="utf-8") as fh:
-            fh.write("namespace,kind,count,size,bytes\n")
+    if output_json:
+        with open(output_json, "w", encoding="utf-8") as fh:
+            json.dump(rows, fh, indent=2)
+        typer.echo(f"Wrote JSON results to {output_json}")
+    elif output:
+        with open(output, "w", newline="", encoding="utf-8") as fh:
+            writer = csv.writer(fh)
+            writer.writerow(["namespace", "kind", "count", "size", "bytes"])
             for r in rows:
-                ns = r.get("namespace") or ""
-                fh.write(f"{ns},{r['kind']},{r['count']},{r['size']},{r['bytes']}\n")
+                writer.writerow([r.get("namespace") or "", r["kind"], r["count"], r["size"], r["bytes"]])
         typer.echo(f"Wrote {len(rows)} rows to {output}")
     else:
         print_summary_table(rows)
@@ -111,6 +126,7 @@ def cmd_cleanup(
     delete_missing_ttl: Annotated[Optional[bool], typer.Option("--delete-missing-ttl", help="Delete when TTL field is missing (falls back to config.delete_missing_ttl)")] = None,
     batch_size: Annotated[Optional[int], typer.Option("--batch-size", help="Delete batch size (falls back to config.batch_size)")] = None,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Only report counts; do not delete")] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit the full per-namespace/kind breakdown as JSON instead of the summary line")] = False,
 ):
     cfg = _load_cfg(config, project, emulator_host, log_level)
 
@@ -124,8 +140,12 @@ def cmd_cleanup(
         cfg.batch_size = batch_size
 
     totals = cleanup_expired(cfg, dry_run=dry_run)
-    deleted_sum = sum(totals.values())
-    typer.echo(f"Total entities {'to delete' if dry_run else 'deleted'}: {deleted_sum}")
+
+    if json_output:
+        typer.echo(json.dumps(totals, indent=2))
+    else:
+        deleted_sum = sum(totals.values())
+        typer.echo(f"Total entities {'to delete' if dry_run else 'deleted'}: {deleted_sum}")
 
 if __name__ == "__main__":
     import sys

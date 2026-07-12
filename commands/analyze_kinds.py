@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 import logging
+import sys
 from typing import Dict, List
 
 from google.cloud.datastore.helpers import entity_to_protobuf
@@ -8,8 +10,9 @@ from google.cloud.datastore.helpers import entity_to_protobuf
 from .config import (
     AppConfig,
     build_client,
-    list_namespaces,
-    list_kinds,
+    resolve_namespaces,
+    resolve_kinds,
+    parallel_map,
     format_size,
 )
 
@@ -76,59 +79,43 @@ def analyze_kinds(config: AppConfig, method: str | None = None) -> List[Dict]:
     # Decide method priority: parameter > config > default
     method = method or getattr(config, "method", None) or "stats"
 
-    # If namespaces is None or empty, iterate all available namespaces
-    if not config.namespaces:
-        namespaces = list_namespaces(client)
-    else:
-        namespaces = config.namespaces
-
+    namespaces = resolve_namespaces(client, config)
     print(f"Found namespaces: {namespaces}")
-    from tqdm import tqdm
-    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     results: List[Dict] = []
     for ns in namespaces:
-        kinds = config.kinds or list_kinds(client, ns)
+        kinds = resolve_kinds(client, config, ns)
         print(f"Namespace '{ns}': found kinds: {kinds}")
         logger.info("Analyzing namespace=%s, %d kinds", ns or "(default)", len(kinds))
 
-        # Parallelize per-kind work (bounded pool)
-        max_workers = min(8, max(1, len(kinds)))
-        with ThreadPoolExecutor(max_workers=max_workers) as exe:
-            futures = {}
-
-            def _process_kind(k):
-                if method == "stats":
-                    count, total_bytes = get_kind_stats(client, k, ns)
-                    if count is None:
-                        logger.warning("Stats not found for kind=%s, ns=%s — falling back to scan", k, ns or "(default)")
-                        count, total_bytes = estimate_entity_count_and_size(client, k, ns)
-                elif method == "scan":
+        def _process_kind(k):
+            if method == "stats":
+                count, total_bytes = get_kind_stats(client, k, ns)
+                if count is None:
+                    logger.warning("Stats not found for kind=%s, ns=%s — falling back to scan", k, ns or "(default)")
                     count, total_bytes = estimate_entity_count_and_size(client, k, ns)
-                else:
-                    raise ValueError(f"Unknown method: {method}")
+            elif method == "scan":
+                count, total_bytes = estimate_entity_count_and_size(client, k, ns)
+            else:
+                raise ValueError(f"Unknown method: {method}")
 
-                return {
-                    "namespace": ns,
-                    "kind": k,
-                    "count": count,
-                    "bytes": total_bytes,
-                    "size": format_size(total_bytes),
-                }
+            return {
+                "namespace": ns,
+                "kind": k,
+                "count": count,
+                "bytes": total_bytes,
+                "size": format_size(total_bytes),
+            }
 
-            for k in kinds:
-                futures[exe.submit(_process_kind, k)] = k
-
-            # Show progress as futures complete
-            for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Analyzing kinds in ns={ns or '(default)'}", unit="kind"):
-                res = fut.result()
-                results.append(res)
+        results.extend(
+            parallel_map(kinds, _process_kind, desc=f"Analyzing kinds in ns={ns or '(default)'}", unit="kind")
+        )
     return results
 
 
 def print_summary_table(rows: List[Dict]) -> None:
     # Plain stdout table for wide compatibility
-    print("namespace,kind,count,size,bytes")
+    writer = csv.writer(sys.stdout)
+    writer.writerow(["namespace", "kind", "count", "size", "bytes"])
     for r in rows:
-        ns = r.get("namespace") or ""
-        print(f"{ns},{r['kind']},{r['count']},{r['size']},{r['bytes']}")
+        writer.writerow([r.get("namespace") or "", r["kind"], r["count"], r["size"], r["bytes"]])

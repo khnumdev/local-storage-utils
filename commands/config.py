@@ -33,6 +33,8 @@ class AppConfig:
     sample_size: int = 500
     # Whether to enable parallel processing for analysis and cleanup (ThreadPool)
     enable_parallel: bool = True
+    # analyze-kinds method: "stats" (fast, may be stale) or "scan" (exact, slower)
+    method: Optional[str] = None
 
     # Logging
     log_level: str = "INFO"
@@ -87,6 +89,7 @@ def load_config(path: Optional[str] = None, overrides: Optional[Dict] = None) ->
     # Optional sample size for analysis commands
     config.sample_size = int(merged.get("sample_size", config.sample_size))
     config.enable_parallel = bool(merged.get("enable_parallel", config.enable_parallel))
+    config.method = merged.get("method", config.method)
 
     config.log_level = str(merged.get("log_level", config.log_level)).upper()
 
@@ -141,6 +144,39 @@ def list_kinds(client: datastore.Client, namespace: Optional[str]) -> List[str]:
     query = client.query(kind="__kind__", namespace=namespace or None)
     query.keys_only()
     return [e.key.name for e in query.fetch()]
+
+
+def resolve_namespaces(client: datastore.Client, config: AppConfig) -> List[str]:
+    """Explicit config.namespaces if set, otherwise every namespace in the datastore."""
+    return config.namespaces if config.namespaces else list_namespaces(client)
+
+
+def resolve_kinds(client: datastore.Client, config: AppConfig, namespace: Optional[str]) -> List[str]:
+    """Explicit config.kinds if set, otherwise every kind in the given namespace."""
+    return config.kinds if config.kinds else list_kinds(client, namespace)
+
+
+def parallel_map(items: Sequence, work_fn, desc: str = "Processing", unit: str = "item", max_workers_cap: int = 8) -> List:
+    """Run work_fn(item) over items on a bounded thread pool with a tqdm progress bar.
+
+    Results are returned in completion order, not input order (callers that need
+    input order must key their own results, e.g. by returning an id alongside the value).
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    from tqdm import tqdm
+
+    items = list(items)
+    if not items:
+        return []
+
+    max_workers = min(max_workers_cap, max(1, len(items)))
+    results = []
+    with ThreadPoolExecutor(max_workers=max_workers) as exe:
+        futures = {exe.submit(work_fn, item): item for item in items}
+        for fut in tqdm(as_completed(futures), total=len(futures), desc=desc, unit=unit):
+            results.append(fut.result())
+    return results
 
 
 def chunked(iterable: Sequence, chunk_size: int):

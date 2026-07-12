@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /home/andres/dev/local-storage-utils/.claude/agents && ls /home/andres/dev/local-storage-utils/.claude)",
+      "Bash(find ~/.claude/skills -maxdepth 2 2>/dev/null | head -50; echo \"---\"; find / -maxdepth 4 -iname \"SKILL.md\" 2>/dev/null | grep -v node_modules | head -20)",
+      "Read(//home/andres/.claude/**)",
+      "Bash(bash -n scripts/run_emulator_local.sh)",
+      "Bash(python3 -m venv .venv)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(python3 -c \"import pytest, yaml, typer, tqdm, google.cloud.datastore; print\\('all deps available'\\)\")",
+      "Bash(pip install *)",
+      "Bash(python3 -m pip --version)",
+      "Bash(apt list *)",
+      "Read(//usr/lib/**)",
+      "Bash(python3 -m py_compile cli.py commands/config.py commands/analyze_kinds.py commands/analyze_entity_fields.py commands/cleanup_expired.py commands/__init__.py scripts/seed_emulator.py tests/*.py)",
+      "Bash(python3 -m ensurepip --user)",
+      "Bash(sudo apt-get install -y python3.12-venv)",
+      "Bash(apt-get install *)",
+      "Bash(sudo -n true)",
+      "Read(//var/cache/apt/archives/**)"
+    ],
+    "additionalDirectories": [
+      "/home/andres/dev/local-storage-utils/.claude"
+    ]
+  }
+}
